@@ -6,4 +6,4 @@
  */
 
 rootProject.name = "DCCV"
-include("app", "actors")
+include("domain", "application")
