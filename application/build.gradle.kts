@@ -25,6 +25,10 @@ dependencies {
     // This dependency is used by the application.
     implementation(libs.guava)
 
+    //akka
+    implementation("com.typesafe.akka:akka-actor-typed_2.13:2.9.0-M2")
+    implementation("com.typesafe.akka:akka-cluster_2.13:2.9.0-M2")
+
     // Use Scalatest for testing our library
     testImplementation(libs.junit)
     testImplementation(libs.scalatest.v2.v13)
