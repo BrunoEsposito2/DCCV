@@ -19,8 +19,8 @@ repositories {
 }
 
 dependencies {
-    // Use Scala 2.13 in our library project
-    implementation(libs.scala.library)
+    // https://mvnrepository.com/artifact/org.scala-lang/scala3-library
+    implementation("org.scala-lang:scala3-library_3:3.3.1")
 
     // This dependency is used by the application.
     implementation(libs.guava)
