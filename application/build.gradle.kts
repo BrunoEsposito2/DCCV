@@ -21,13 +21,12 @@ repositories {
 dependencies {
     // https://mvnrepository.com/artifact/org.scala-lang/scala3-library
     implementation("org.scala-lang:scala3-library_3:3.3.3")
-    
+
     // This dependency is used by the application.
     implementation("com.google.guava:guava:33.2.1-jre")
 
-    //akka
-    implementation("com.typesafe.akka:akka-actor-typed_2.13:2.9.0-M2")
-    implementation("com.typesafe.akka:akka-cluster_2.13:2.9.0-M2")
+    // https://mvnrepository.com/artifact/com.typesafe.akka/akka-actor-typed
+    implementation("com.typesafe.akka:akka-actor-typed_3:2.8.6")
 
     // Use Scalatest for testing our library
 
@@ -36,9 +35,12 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-engine:1.10.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
     testRuntimeOnly("org.scalatestplus:junit-5-10_3:3.2.19.0")
-    
-    // https://mvnrepository.com/artifact/com.typesafe.akka/akka-testkit
-    testImplementation("com.typesafe.akka:akka-testkit_3:2.8.6")
+
+    // https://mvnrepository.com/artifact/com.typesafe.akka/akka-actor-testkit-typed
+    testImplementation("com.typesafe.akka:akka-actor-testkit-typed_3:2.8.6")
+    // https://mvnrepository.com/artifact/com.typesafe.akka/akka-slf4j
+    implementation("com.typesafe.akka:akka-slf4j_3:2.8.6")
+
 }
 
 tasks {
