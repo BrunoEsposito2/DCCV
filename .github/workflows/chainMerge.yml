@@ -49,7 +49,7 @@ jobs:
         git checkout $next_branch
         
         # Merge the current branch into it
-        git merge origin/$current_branch
+        git merge $current_branch
         
         # Push the changes back to the next branch
         git push origin $next_branch
