@@ -61,6 +61,9 @@ jobs:
         distribution: 'corretto'
         java-version: '17'
 
+    - name: Set execute permissions for Gradle wrapper
+      run: chmod +x ./gradlew
+      
     - name: Run Gradle tests
       if: ${{ steps.determine-next.outputs.next_branch }}
       run: ./gradlew test
