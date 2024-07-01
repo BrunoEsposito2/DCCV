@@ -20,28 +20,42 @@ repositories {
 
 dependencies {
     // https://mvnrepository.com/artifact/org.scala-lang/scala3-library
-    implementation("org.scala-lang:scala3-library_3:3.3.1")
-
+    implementation("org.scala-lang:scala3-library_3:3.3.3")
+    
     // This dependency is used by the application.
-    implementation(libs.guava)
+    implementation("com.google.guava:guava:33.2.1-jre")
 
     //akka
     implementation("com.typesafe.akka:akka-actor-typed_2.13:2.9.0-M2")
     implementation("com.typesafe.akka:akka-cluster_2.13:2.9.0-M2")
 
     // Use Scalatest for testing our library
-    testImplementation(libs.junit)
-    testImplementation(libs.scalatest.v2.v13)
-    testImplementation(libs.junit.v4.v13.v2.v13)
 
-    // Need scala-xml at test runtime
-    testRuntimeOnly(libs.scala.xml.v2.v13)
+    // Use Scala 3.1 in our library project
+    testImplementation("org.scalatest:scalatest_3:3.2.19")
+    testRuntimeOnly("org.junit.platform:junit-platform-engine:1.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
+    testRuntimeOnly("org.scalatestplus:junit-5-10_3:3.2.19.0")
+    
+    // https://mvnrepository.com/artifact/com.typesafe.akka/akka-testkit
+    testImplementation("com.typesafe.akka:akka-testkit_3:2.8.6")
+}
+
+tasks {
+    test{
+        useJUnitPlatform {
+            includeEngines("scalatest")
+            testLogging {
+                events("passed", "skipped", "failed")
+            }
+        }
+    }
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(17)
     }
 }
 
