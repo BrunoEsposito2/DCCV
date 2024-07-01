@@ -68,6 +68,7 @@ jobs:
       if: ${{ steps.determine-next.outputs.next_branch }}
       run: |
         current_branch=${{ steps.determine-current.outputs.current_branch }}
+        echo $current_branch
         ./gradlew $current_branch:test
 
     - name: Push changes to next branch if tests pass
