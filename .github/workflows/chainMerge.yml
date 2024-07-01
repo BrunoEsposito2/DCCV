@@ -42,6 +42,7 @@ jobs:
     - name: Merge into next branch
       if: ${{ steps.determine-next.outputs.next_branch }}
       run: |
+        current_branch="${GITHUB_REF#refs/heads/}"
         next_branch=${{ steps.determine-next.outputs.next_branch }}
         echo "Merging $current_branch into $next_branch"
 
