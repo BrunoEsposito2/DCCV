@@ -67,9 +67,8 @@ jobs:
     - name: Run Gradle tests
       if: ${{ steps.determine-next.outputs.next_branch }}
       run: |
-        current_branch=${{ steps.determine-current.outputs.current_branch }}
-        echo "branch = $current_branch"
-        ./gradlew $current_branch:test
+        current_branch="${GITHUB_REF#refs/heads/}"
+        ./gradlew ${current_branch}:test
 
     - name: Push changes to next branch if tests pass
       if: ${{ success() && steps.determine-next.outputs.next_branch }}
