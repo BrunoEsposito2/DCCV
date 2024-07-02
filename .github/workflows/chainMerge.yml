@@ -48,9 +48,6 @@ jobs:
     
         # Checkout the next branch
         git checkout $next_branch
-
-        # Fetch the latest updates from the remote repository
-        git fetch --all
         
         # Merge the current branch into it
         git merge $current_branch
@@ -59,7 +56,7 @@ jobs:
         git push origin $next_branch
 
     - name: Set up JDK 17
-      if: ${{ steps.determine-next.outputs.next_branch }}
+      if: ${{ steps.determine-next.outputs.next_branch != '' }}
       uses: actions/setup-java@v3
       with:
         distribution: 'corretto'
@@ -69,13 +66,13 @@ jobs:
       run: chmod +x ./gradlew
       
     - name: Run Gradle tests
-      if: ${{ steps.determine-next.outputs.next_branch }}
+      if: ${{ steps.determine-next.outputs.next_branch != '' }}
       run: |
         subproject="${GITHUB_REF#refs/heads/}"
         ./gradlew ${subproject}:test
 
     - name: Push changes to next branch if tests pass
-      if: ${{ success() && steps.determine-next.outputs.next_branch }}
+      if: ${{ success() && steps.determine-next.outputs.next_branch != '' }}
       run: |
         next_branch=${{ steps.determine-next.outputs.next_branch }}
         echo "Tests  passed. Merging $current_branch into $next_branch"
