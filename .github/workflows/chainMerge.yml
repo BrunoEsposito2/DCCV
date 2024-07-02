@@ -47,7 +47,7 @@ jobs:
         echo "Merging $current_branch into $next_branch"
 
         # Checkout the next branch
-        git checkout $next_branch
+        git checkout origin/$next_branch
         
         # Merge the current branch into it
         git merge origin/$current_branch
