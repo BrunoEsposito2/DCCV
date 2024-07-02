@@ -40,17 +40,17 @@ jobs:
         echo "::set-output name=next_branch::$next_branch"
 
     - name: Merge into next branch
-      if: ${{ steps.determine-next.outputs.next_branch }}
+      if: ${{ steps.determine-next.outputs.next_branch != '' }}
       run: |
         current_branch="${GITHUB_REF#refs/heads/}"
-        next_branch=${{ steps.determine-next.outputs.next_branch }}
+        next_branch="${{ steps.determine-next.outputs.next_branch }}"
         echo "Merging $current_branch into $next_branch"
-
+    
         # Checkout the next branch
-        git checkout origin/$next_branch
+        git checkout $next_branch
         
         # Merge the current branch into it
-        git merge origin/$current_branch
+        git merge $current_branch
         
         # Push the changes back to the next branch
         git push origin $next_branch
