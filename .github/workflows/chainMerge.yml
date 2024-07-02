@@ -15,7 +15,11 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.1.5
+      if: inputs.token == ''
+      with:
+        fetch-depth: 0
+        submodules: recursive
 
     - name: Configure git
       run: |
@@ -51,10 +55,9 @@ jobs:
     
         # Checkout the next branch
         git checkout $next_branch
-        git pull origin $next_branch
         
         # Merge the current branch into it
-        git merge --allow-unrelated-histories $current_branch 
+        git merge $current_branch 
         
         # Push the changes back to the next branch
         git push origin $next_branch
