@@ -75,7 +75,7 @@ jobs:
       if: ${{ success() && steps.determine-next.outputs.next_branch }}
       run: |
         next_branch=${{ steps.determine-next.outputs.next_branch }}
-        echo "Tests passed. Merging $current_branch into $next_branch"
+        echo "Tests  passed. Merging $current_branch into $next_branch"
 
         # Checkout the next branch again to ensure it's up to date
         git checkout $next_branch
