@@ -1,23 +1,35 @@
+import React, { useState } from 'react';
 import './App.css';
-import logo from "./logo.svg";
+import VideoFeed from "./components/videofeed";
+import CameraList from "./components/cameralist";
 
-function App() {
+const App = () => {
+    const [currentCamera, setCurrentCamera] = useState('camera1');
+    const [details, setDetails] = useState({
+        peopleCount: 5,
+        clothesColor: 'Red, Blue',
+    });
+
+    const cameras = [
+        { name: 'Camera 1', id: 'camera1' },
+        { name: 'Camera 2', id: 'camera2' },
+        { name: 'Camera 3', id: 'camera3' },
+        // Aggiungi altre videocamere se necessario
+    ];
+
+    const handleCameraClick = (cameraId) => {
+        setCurrentCamera(cameraId);
+        // Aggiorna i dettagli in base alla videocamera selezionata
+        setDetails({
+            peopleCount: Math.floor(Math.random() * 10),
+            clothesColor: 'Color ' + Math.floor(Math.random() * 5),
+        });
+    };
+
     return (
-        <div className="App">
-            <header className="App-header">
-                <img src={logo} className="App-logo" alt="logo" />
-                <p>
-                    Edit <code>src/App.tsx</code> and save to reload.
-                </p>
-                <a
-                    className="App-link"
-                    href="https://reactjs.org"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    Learn React
-                </a>
-            </header>
+        <div className="app-container">
+            <VideoFeed cameraId={currentCamera} url={`http://example.com/feed/${currentCamera}`} details={details} />
+            <CameraList cameras={cameras} onCameraClick={handleCameraClick} />
         </div>
     );
 }
