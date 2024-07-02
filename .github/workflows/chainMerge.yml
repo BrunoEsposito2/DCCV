@@ -48,6 +48,7 @@ jobs:
     
         # Checkout the next branch
         git checkout $next_branch
+        git pull origin $next_branch
         
         # Merge the current branch into it
         git merge $current_branch
