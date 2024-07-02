@@ -45,12 +45,12 @@ jobs:
         current_branch="${GITHUB_REF#refs/heads/}"
         next_branch="${{ steps.determine-next.outputs.next_branch }}"
         echo "Merging $current_branch into $next_branch"
-
-        # Fetch the latest updates from the remote repository
-        git fetch origin
     
         # Checkout the next branch
         git checkout $next_branch
+
+        # Fetch the latest updates from the remote repository
+        git fetch --all
         
         # Merge the current branch into it
         git merge $current_branch
