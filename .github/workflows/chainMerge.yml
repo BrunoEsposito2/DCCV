@@ -15,12 +15,20 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4.1.5
+      if: inputs.token == ''
+      with:
+        fetch-depth: 0
+        submodules: recursive
+        token: ${{ secrets.merge_token }}
 
     - name: Configure git
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+        echo "Git configuration:"
+        git config --list
 
     - name: Fetch all branches
       run: git fetch --all
@@ -39,24 +47,8 @@ jobs:
 
         echo "::set-output name=next_branch::$next_branch"
 
-    - name: Merge into next branch
-      if: ${{ steps.determine-next.outputs.next_branch }}
-      run: |
-        current_branch="${GITHUB_REF#refs/heads/}"
-        next_branch=${{ steps.determine-next.outputs.next_branch }}
-        echo "Merging $current_branch into $next_branch"
-
-        # Checkout the next branch
-        git checkout $next_branch
-        
-        # Merge the current branch into it
-        git merge $current_branch
-        
-        # Push the changes back to the next branch
-        git push origin $next_branch
-
     - name: Set up JDK 17
-      if: ${{ steps.determine-next.outputs.next_branch }}
+      if: ${{ steps.determine-next.outputs.next_branch != '' }}
       uses: actions/setup-java@v3
       with:
         distribution: 'corretto'
@@ -66,15 +58,16 @@ jobs:
       run: chmod +x ./gradlew
       
     - name: Run Gradle tests
-      if: ${{ steps.determine-next.outputs.next_branch }}
+      if: ${{ steps.determine-next.outputs.next_branch != '' }}
       run: |
         subproject="${GITHUB_REF#refs/heads/}"
         ./gradlew ${subproject}:test
 
     - name: Push changes to next branch if tests pass
-      if: ${{ success() && steps.determine-next.outputs.next_branch }}
+      if: ${{ success() && steps.determine-next.outputs.next_branch != '' }}
       run: |
-        next_branch=${{ steps.determine-next.outputs.next_branch }}
+        current_branch="${GITHUB_REF#refs/heads/}"
+        next_branch="${{ steps.determine-next.outputs.next_branch }}"
         echo "Tests passed. Merging $current_branch into $next_branch"
 
         # Checkout the next branch again to ensure it's up to date
