@@ -20,7 +20,7 @@ jobs:
       with:
         fetch-depth: 0
         submodules: recursive
-        token: ${{ secrets.merge_token }}
+        token: ${{ secrets.DCCV_TOKEN }}
 
     - name: Configure git
       run: |
