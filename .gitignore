@@ -1,8 +1,11 @@
 .gradle
 **/build/
 !src/**/build/
+interface/node_modules/
 
 .idea
+
+interface/package-lock.json
 
 # Ignore Gradle GUI config
 gradle-app.setting

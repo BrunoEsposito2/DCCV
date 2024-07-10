@@ -7,7 +7,7 @@ services:
 #      - backend
     build:
       context: ./client/
-      dockerfile: Dockerfile
+      dockerfile: interface/Dockerfile
     restart: always
     ports:
       - 3000:3000
