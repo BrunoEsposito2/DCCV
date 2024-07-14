@@ -43,6 +43,8 @@ dependencies {
     // https://mvnrepository.com/artifact/com.typesafe.akka/akka-slf4j
     implementation("com.typesafe.akka:akka-slf4j_3:2.8.6")
 
+    implementation("org.mongodb:mongodb-driver-sync:4.8.2")
+    implementation("org.mongodb:bson:4.8.2")
 }
 
 tasks {
@@ -65,5 +67,5 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = "org.example.App"
+    mainClass = "database.MongoDBDriver"
 }
