@@ -1,4 +1,4 @@
-package example
+package database
 
 import actor.ReachableActor
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
@@ -7,7 +7,7 @@ import akka.actor.typed.ActorRef
 import message.{Message, Ping, Pong}
 import utils.Info
 
-class example extends AnyFlatSpec:
+class MongoDBDriverTest extends AnyFlatSpec:
 
   "A ReachableActor" should "be reachable" in testPong()
 
