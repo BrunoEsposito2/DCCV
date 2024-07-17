@@ -8,6 +8,7 @@ on:
       - 'presentation'
       - 'storage'
       - 'interface'
+      - 'distribution'
 
 jobs:
   chain-merge-and-test:
@@ -40,7 +41,7 @@ jobs:
         echo "Current branch: $current_branch"
 
         declare -A branches
-        branches=( ["domain"]="application" ["application"]="presentation" ["presentation"]="storage" ["storage"]="interface" ["interface"]="")
+        branches=( ["domain"]="application" ["application"]="presentation" ["presentation"]="storage" ["storage"]="interface" ["interface"]="distribution" ["distribution"]="")
 
         next_branch="${branches[$current_branch]}"
         echo "Next branch: $next_branch"
