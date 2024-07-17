@@ -1,22 +1,21 @@
 package database
 
-import actor.ReachableActor
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import org.scalatest.flatspec.AnyFlatSpec
-import akka.actor.typed.ActorRef
-import message.{Message, Ping, Pong}
-import utils.Info
 
 class MongoDBDriverTest extends AnyFlatSpec:
 
-  "A ReachableActor" should "be reachable" in testPong()
+  "A Database connection" should "be opened" in testDBConnection()
+  "A Database getData function" should "get data from the database" in testDBGetTrackingData()
 
   val testKit: ActorTestKit = ActorTestKit()
 
+  def testDBConnection(): Unit =
+    val mongodbDriver: MongoDBDriver = MongoDBDriver()
+    assert(mongodbDriver.connect() == "MongoDB: Connection established")
 
-  def testPong(): Unit =
-    val pinger = testKit.createTestProbe[Message]()
-    val exampleInfo = Info()
-    val actorRef = testKit.spawn(ReachableActor(exampleInfo).behavior())
-    actorRef ! Ping(pinger.ref)
-    pinger.expectMessage(Pong(exampleInfo))
+  def testDBGetTrackingData(): Unit =
+    val mongodbDriver: MongoDBDriver = MongoDBDriver()
+    mongodbDriver.connect() // Connect to the MongoDB server
+    assert(mongodbDriver.getTrackingData().nonEmpty)
+

@@ -4,6 +4,7 @@ import com.mongodb.{ConnectionString, MongoClientSettings, MongoException, Serve
 import com.mongodb.client.{MongoClient, MongoClients, MongoCollection, MongoDatabase}
 import org.bson.{BsonDocument, BsonInt64, Document}
 import org.bson.conversions.Bson
+import scala.util.Properties
 
 import scala.collection.mutable.ListBuffer
 
@@ -11,32 +12,36 @@ object MongoDBDriver:
   def apply(): MongoDBDriver = new MongoDBDriver()
 
 private class MongoDBDriver:
-  val DB_NAME: String = "DB_NAME"
+  val DB_NAME: String = "DCCV"
+  val DB_COLLECTION: String = "tracking"
+  var mongoClient: MongoClient = _
 
-  val serverAPI: ServerApi = ServerApi.builder().version(ServerApiVersion.V1).build()
+  def connect(): String =
+    val serverAPI: ServerApi = ServerApi.builder().version(ServerApiVersion.V1).build()
 
-  val settings: MongoClientSettings = MongoClientSettings.builder()
-    .applyConnectionString(new ConnectionString(System.getenv("DATABASE_URI")))
-    .serverApi(serverAPI)
-    .build()
+    val settings: MongoClientSettings = MongoClientSettings.builder()
+      .applyConnectionString(ConnectionString(scala.sys.env.getOrElse("DATABASE_URI", "mongodb://localhost:27017/")))
+      .serverApi(serverAPI)
+      .build()
 
-  def getData(): ListBuffer[Document] =
-    val mongoClient: MongoClient = MongoClients.create(settings)
-    // TODO: change DB_NAME
+    mongoClient = MongoClients.create(settings)
     val database: MongoDatabase = mongoClient.getDatabase(DB_NAME)
 
     /* Send a ping to confirm a successful connection */
     try {
       val command: Bson = new BsonDocument("ping", new BsonInt64(1))
       val commandResult: Document = database.runCommand(command)
-      println("MongoDB: Connection established")
+      "MongoDB: Connection established"
     } catch {
-      case mongodbException: MongoException => System.err.println(mongodbException)
+      case mongodbException: MongoException =>
+        System.err.println(mongodbException);
+        "MongoDB: Connection Failed"
     }
 
-    val collection: MongoCollection[Document] = mongoClient.getDatabase(DB_NAME).getCollection("DB_COLLECTION")
+  def getTrackingData(): ListBuffer[Document] =
+    val collection: MongoCollection[Document] = mongoClient.getDatabase(DB_NAME).getCollection(DB_COLLECTION)
     val resultData: ListBuffer[Document] = ListBuffer()
-    collection.find().limit(5).forEach(data => resultData += data)
+    collection.find().forEach(data => resultData += data)
     resultData
 
 
