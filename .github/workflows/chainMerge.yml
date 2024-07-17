@@ -9,6 +9,8 @@ on:
       - 'storage'
       - 'interface'
       - 'distribution'
+    paths-ignore:
+          - 'settings.gradle.*'
 
 jobs:
   chain-merge-and-test:
@@ -90,7 +92,7 @@ jobs:
           db.createCollection('tracking');
           db.tracking.insertOne({});
         EOF
-      
+
     - name: Run Gradle tests
       if: ${{ steps.determine-next.outputs.next_branch != '' }}
       run: |
@@ -109,6 +111,6 @@ jobs:
 
         # Merge the current branch into it again to ensure it's up to date
         git merge $current_branch
-        
+
         # Push the changes to the next branch
         git push origin $next_branch
