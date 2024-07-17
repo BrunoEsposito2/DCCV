@@ -9,13 +9,9 @@ class MongoDBDriverTest extends AnyFlatSpec:
   "A Database getData function" should "get data from the database" in testDBGetTrackingData()
 
   val testKit: ActorTestKit = ActorTestKit()
+  val mongodbDriver: MongoDBDriver = MongoDBDriver()
 
-  def testDBConnection(): Unit =
-    val mongodbDriver: MongoDBDriver = MongoDBDriver()
-    assert(mongodbDriver.connect() == "MongoDB: Connection established")
+  def testDBConnection(): Unit = assert(mongodbDriver.connect() == "MongoDB: Connection established")
 
-  def testDBGetTrackingData(): Unit =
-    val mongodbDriver: MongoDBDriver = MongoDBDriver()
-    mongodbDriver.connect() // Connect to the MongoDB server
-    assert(mongodbDriver.getTrackingData().nonEmpty)
+  def testDBGetTrackingData(): Unit = assert(mongodbDriver.getTrackingData().nonEmpty)
 
