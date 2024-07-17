@@ -14,6 +14,21 @@ jobs:
   chain-merge-and-test:
     runs-on: ubuntu-latest
 
+    services:
+      mongodb:
+        image: mongo:4.4.6
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: admin
+          MONGO_INITDB_DATABASE: DCCV
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd mongo
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4.1.5
@@ -57,6 +72,24 @@ jobs:
 
     - name: Set execute permissions for Gradle wrapper
       run: chmod +x ./gradlew
+
+    - name: Install mongosh
+      run: |
+        sudo apt-get install gnupg
+        wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-7.0.asc
+        echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+        sudo apt-get update
+        sudo apt-get install -y mongodb-mongosh
+        mongosh --version
+
+    - name: Initalize MongoDB
+      run: |
+        mongosh --host localhost:27017 -u admin -p admin --authenticationDatabase admin <<EOF
+          db = db.getSiblingDB('DCCV');
+          db.createUser({ user: 'APP-USERNAME', pwd: 'APP-PASSWORD', roles: [{ role: 'readWrite', db: 'DCCV' }] })
+          db.createCollection('tracking');
+          db.tracking.insertOne({});
+        EOF
       
     - name: Run Gradle tests
       if: ${{ steps.determine-next.outputs.next_branch != '' }}
