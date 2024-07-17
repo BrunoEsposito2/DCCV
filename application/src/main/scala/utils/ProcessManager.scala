@@ -7,7 +7,11 @@ import sys.process.*
 sealed trait ProcessManager(instruction: String):
 
   def execute(): String =
-    val command = "cmd /c "+ instruction
+    val os = System.getProperty("os.name").toLowerCase
+    val command = if os.contains("win") then
+      "cmd /c "+ instruction 
+    else
+      instruction
     val result = Try:
       val output = Process(command).!!
       output
