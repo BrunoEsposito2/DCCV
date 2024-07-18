@@ -42,6 +42,7 @@ unitTest {
 
 // Configura cpp-application per usare l'output di CMake
 tasks.withType<LinkExecutable>().configureEach {
+    onlyIf { org.gradle.internal.os.OperatingSystem.current().isLinux }
     dependsOn("buildCMake")
     linkerArgs.addAll(listOf(
         "-L/usr/local/lib",
@@ -56,12 +57,13 @@ tasks.withType<LinkExecutable>().configureEach {
 }
 
 tasks.withType<CppCompile>().configureEach {
+    onlyIf { org.gradle.internal.os.OperatingSystem.current().isLinux }
     dependsOn("buildCMake")
     includes.from("/usr/local/include/opencv4")
 }
 
 // Assicurati che i git hooks vengano installati durante il build
-tasks.getByPath(":prepareKotlinBuildScriptModel").dependsOn.addAll(listOf(tasks.getByName("check")))
+//tasks.getByPath(":prepareKotlinBuildScriptModel").dependsOn.addAll(listOf(tasks.getByName("check")))
 
 /*
 * Gradle tasks running docker image and container
