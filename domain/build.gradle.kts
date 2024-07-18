@@ -13,7 +13,69 @@ plugins {
     `cpp-unit-test`
 }
 
+// Configurazione base del progetto
+repositories {
+    mavenCentral()
+}
+
 // Set the target operating system and architecture for this application
 application {
-    targetMachines.add(machines.windows.x86_64)
+    targetMachines.add(machines.linux.x86_64)
+}
+
+tasks.register("buildCMake") {
+    doLast {
+        exec {
+            commandLine("sh", "-c", """
+                mkdir -p build &&
+                cd build &&
+                cmake .. &&
+                cmake --build .
+            """)
+        }
+    }
+}
+
+unitTest {
+    targetMachines.add(machines.linux.x86_64)
+}
+
+// Configura cpp-application per usare l'output di CMake
+tasks.withType<LinkExecutable>().configureEach {
+    dependsOn("buildCMake")
+    linkerArgs.addAll(listOf(
+        "-L/usr/local/lib",
+        "-lopencv_core",
+        "-lopencv_imgproc",
+        "-lopencv_objdetect",
+        "-lopencv_highgui",
+        "-lopencv_imgcodecs",
+        "-lopencv_videoio"
+    ))
+    linkerArgs.add("-Wl,-rpath,/usr/local/lib")
+}
+
+tasks.withType<CppCompile>().configureEach {
+    dependsOn("buildCMake")
+    includes.from("/usr/local/include/opencv4")
+}
+
+// Assicurati che i git hooks vengano installati durante il build
+tasks.getByPath(":prepareKotlinBuildScriptModel").dependsOn.addAll(listOf(tasks.getByName("check")))
+
+/*
+* Gradle tasks running docker image and container
+* */
+tasks.register("dockerBuild") {
+    doFirst {
+        exec {
+            commandLine("cmd", "/c", "docker build -t ubuntu-opencv_build .")
+        }
+    }
+    doLast {
+        exec {
+            commandLine("cmd", "/c",
+                "docker run -v %cd%\\\\..:/workspace --name ubuntu-opencv_build-container --rm ubuntu-opencv_build /bin/bash -c \" ./gradlew build\"")
+        }
+    }
 }
