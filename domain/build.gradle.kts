@@ -42,7 +42,6 @@ unitTest {
 
 // Configura cpp-application per usare l'output di CMake
 tasks.withType<LinkExecutable>().configureEach {
-    onlyIf { org.gradle.internal.os.OperatingSystem.current().isLinux }
     dependsOn("buildCMake")
     linkerArgs.addAll(listOf(
         "-L/usr/local/lib",
@@ -57,7 +56,6 @@ tasks.withType<LinkExecutable>().configureEach {
 }
 
 tasks.withType<CppCompile>().configureEach {
-    onlyIf { org.gradle.internal.os.OperatingSystem.current().isLinux }
     dependsOn("buildCMake")
     includes.from("/usr/local/include/opencv4")
 }
