@@ -5,29 +5,15 @@ tasks.register("buildCMake") {
     buildDir.mkdirs()
 
     doLast {
-        if (OperatingSystem.current().isWindows) {
+        if (OperatingSystem.current().isLinux) {
             exec {
                 workingDir = buildDir
-                commandLine("cmd", "/c", "cmake", "..")
-                standardOutput = System.out
-                errorOutput = System.err
-            }
-            exec {
-                workingDir = buildDir
-                commandLine("cmd", "/c", "cmake", "--build", ".")
-                standardOutput = System.out
-                errorOutput = System.err
-            }
-        } else if (OperatingSystem.current().isLinux) {
-            exec {
-                workingDir = buildDir
-                commandLine("sh", "-c", "cmake", "..")
-                standardOutput = System.out
-                errorOutput = System.err
-            }
-            exec {
-                workingDir = buildDir
-                commandLine("sh", "-c", "cmake", "--build", ".")
+                commandLine("sh", "-c", """
+                            cmake .. &&
+                            cmake --build .
+                            """)
+                /* mkdir -p build &&
+                   cd build &&*/
                 standardOutput = System.out
                 errorOutput = System.err
             }

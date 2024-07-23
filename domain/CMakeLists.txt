@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(app)
+project(domain)
 
 # Set the OpenCV_DIR to the correct path
 #set(OpenCV_DIR /usr/local/lib/cmake/opencv4)
