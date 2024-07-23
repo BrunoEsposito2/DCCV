@@ -5,7 +5,15 @@ project(app)
 # Set the OpenCV_DIR to the correct path
 #set(OpenCV_DIR /usr/local/lib/cmake/opencv4)
 # or
-set(OpenCV_DIR /usr/local/share/opencv4)
+if(UNIX)
+    # Per sistemi Unix-like (Linux, macOS)
+    set(OpenCV_DIR /usr/local/share/opencv4)
+# elseif(WIN32)
+    # Per sistemi Windows
+    # set(OpenCV_DIR C:/Users/*/Desktop/opencv/build)
+else()
+    message(FATAL_ERROR "Sistema operativo non supportato: compilare il programma c++ tramite docker")
+endif()
 
 find_package(OpenCV REQUIRED)
 
