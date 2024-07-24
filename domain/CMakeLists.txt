@@ -23,3 +23,10 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 add_executable(${PROJECT_NAME} src/main/cpp/app.cpp)
 
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
+
+# Installazione dell'eseguibile
+install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
+
+# Installazione delle librerie OpenCV
+file(GLOB OPENCV_LIBS "/usr/local/lib/libopencv_*.so*")
+install(FILES ${OPENCV_LIBS} DESTINATION lib)

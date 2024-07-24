@@ -31,12 +31,34 @@ unitTest {
     targetMachines.add(machines.windows.x86_64)
 }
 
+val copyOpenCVLibs by tasks.registering(Copy::class) {
+    val libDir = file("build/libs")
+    libDir.mkdirs()
+    from("/usr/local/lib")
+    into("build/libs")
+    include("libopencv_*.so*")
+}
+
+val createDistribution by tasks.registering(Tar::class) {
+    archiveFileName.set("cpp-algorithm.tar")
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+
+    from("build/exe/main/debug/linux") { into("bin") }
+    from(tasks.named("copyOpenCVLibs")) { into("libs") }
+
+    from("build/exe/main/debug/linux")
+    from("build/libs")
+    // from("build/install/bin") { into("domain/bin") }
+    from("run.sh")
+    into("domain")
+}
+
 apply(from = "cpp-build-plugin.gradle.kts")
 
 // Configura cpp-application per usare l'output di CMake
 tasks.withType<LinkExecutable>().configureEach {
-    dependsOn("buildCMake")
     onlyIf { OperatingSystem.current().isLinux }
+    dependsOn(copyOpenCVLibs, createDistribution, "buildCMake")
     linkerArgs.addAll(listOf(
         "-L/usr/local/lib",
         "-lopencv_core",
@@ -47,6 +69,7 @@ tasks.withType<LinkExecutable>().configureEach {
         "-lopencv_videoio"
     ))
     linkerArgs.add("-Wl,-rpath,/usr/local/lib")
+    linkerArgs.add("-Wl,-rpath,\$ORIGIN/libs")
 }
 
 tasks.withType<CppCompile>().configureEach {
