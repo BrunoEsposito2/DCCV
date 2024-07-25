@@ -97,7 +97,6 @@ jobs:
       uses: docker/setup-buildx-action@v3
       with:
         driver: docker-container
-        driver-opts: image=brunoesposito2/ubuntu_opencv_build
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v4
