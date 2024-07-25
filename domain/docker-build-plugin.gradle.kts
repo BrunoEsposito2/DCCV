@@ -44,7 +44,7 @@ tasks.register("dockerBuild") {
 //        }
     } else if (OperatingSystem.current().isLinux) { //(System.getenv("GITHUB_ACTIONS") == "true") {
         exec {
-            commandLine("sh", "-c", "./gradlew build")
+            commandLine("sh", "-c", ".././gradlew build")
         }
     }
 }
