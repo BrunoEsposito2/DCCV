@@ -39,18 +39,15 @@ val copyOpenCVLibs by tasks.registering(Copy::class) {
     include("libopencv_*.so*")
 }
 
-val createDistribution by tasks.registering(Tar::class) {
-    archiveFileName.set("cpp-algorithm.tar")
-    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
-
+val createDistribution by tasks.registering(Sync::class) {
     from("build/exe/main/debug/linux") { into("bin") }
     from(tasks.named("copyOpenCVLibs")) { into("libs") }
 
     from("build/exe/main/debug/linux")
     from("build/libs")
-    // from("build/install/bin") { into("domain/bin") }
+    from("build/install/bin") { into("bin") }>
     from("run.sh")
-    into("domain")
+    into("build/release/domain")
 }
 
 apply(from = "cpp-build-plugin.gradle.kts")
