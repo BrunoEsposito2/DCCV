@@ -40,7 +40,7 @@ tasks.register("dockerBuild") {
                         docker run \
                         ${mounts} \
                         -v /workspace/.gradle \
-                        -v "${project.projectDir}"/../.gradle:/tmp/.gradle
+                        -v "${project.projectDir}"/../.gradle:/tmp/.gradle \
                         --name ubuntu-opencv_build-container \
                         --rm ubuntu-opencv_build \
                         /bin/bash -c 'GRADLE_USER_HOME=/tmp/.gradle ./gradlew build'
