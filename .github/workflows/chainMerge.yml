@@ -93,13 +93,14 @@ jobs:
           db.tracking.insertOne({});
         EOF
 
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
     - name: Run Gradle tests
       if: ${{ steps.determine-next.outputs.next_branch != '' }}
-      uses: addnab/docker-run-action@v3
-      with:
-        run: |
-          subproject="${GITHUB_REF#refs/heads/}"
-          ./gradlew ${subproject}:test
+      run: |
+        subproject="${GITHUB_REF#refs/heads/}"
+        ./gradlew ${subproject}:test
 
     - name: Push changes to next branch if tests pass
       if: ${{ success() && steps.determine-next.outputs.next_branch != '' }}
