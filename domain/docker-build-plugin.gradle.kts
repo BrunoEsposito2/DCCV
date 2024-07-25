@@ -29,7 +29,7 @@ tasks.register("dockerBuild") {
         }
         doLast {
             val mounts = project.projectDir.parentFile.listFiles()
-                ?.filter { !it.name.contains(".gradle") }
+                ?.filter { x -> !(x.name.contains(".gradle") || x.name.contains(".idea")) }
                 ?.map { "-v ${it.absolutePath}:/workspace/${it.name}" }
                 ?.map { it.replace(",", " ") }
                 ?.joinToString(" ")
