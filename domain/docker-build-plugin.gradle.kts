@@ -31,7 +31,7 @@ tasks.register("dockerBuild") {
             exec {
                 commandLine(
                     "sh", "-c", """
-                        echo ${project.projectDir.parent} &&
+                        echo "${project.projectDir.parent}" &&
                         echo "pwd stampato" &&
                         docker run -v ${project.projectDir.parent}:/workspace -v /workspace/.gradle -v ${project.projectDir.parent}/.gradle:/tmp/.gradle --name ubuntu-opencv_build-container --rm ubuntu-opencv_build /bin/bash -c 'GRADLE_USER_HOME=/tmp/.gradle ./gradlew build'
                     """)
