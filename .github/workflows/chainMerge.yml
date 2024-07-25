@@ -93,10 +93,18 @@ jobs:
           db.tracking.insertOne({});
         EOF
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+#    - name: Set up Docker Buildx
+#      uses: docker/setup-buildx-action@v3
+#      with:
+#        driver: docker-container
+#        driver-opts: image=brunoesposito2/ubuntu_opencv_build
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
       with:
-        driver-opts: image=brunoesposito2/ubuntu_opencv_build
+        context: .
+        pull: true
+        tags: brunoesposito2/ubuntu_opencv_build
 
     - name: Run Gradle tests
       if: ${{ steps.determine-next.outputs.next_branch != '' }}
