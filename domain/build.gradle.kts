@@ -84,10 +84,8 @@ tasks.withType<CppCompile>().configureEach {
 apply(from = "docker-build-plugin.gradle.kts")
 
 tasks.test {
+    dependsOn("build")
     exec {
-        commandLine("sh", "-c", """
-            .././gradlew dockerBuild &&
-            /domain/build/release/run.sh
-            """)
+        commandLine("sh", "-c", "/domain/build/release/run.sh")
     }
 }
