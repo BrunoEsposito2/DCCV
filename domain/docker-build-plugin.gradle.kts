@@ -41,7 +41,7 @@ tasks.register("dockerBuild") {
                         ${mounts} \
                         --name ubuntu-opencv_build-container \
                         --rm ubuntu-opencv_build \
-                        /bin/bash -c './gradlew build'
+                        /bin/bash -c './gradlew buildCMake'
                     """
                 )
                 standardOutput = System.out
