@@ -31,7 +31,13 @@ tasks.register("dockerBuild") {
             exec {
                 commandLine(
                     "sh", "-c", """
-                        docker run -v "${project.projectDir}"/..:/workspace -v /workspace/.gradle -v "${project.projectDir}/.gradle":/tmp/.gradle --name ubuntu-opencv_build-container --rm ubuntu-opencv_build /bin/bash -c 'GRADLE_USER_HOME=/tmp/.gradle ./gradlew build'
+                        MOUNTS=$(find "${project.projectDir}"/.. -mindepth 1 -maxdepth 1 -not -name .gradle -printf '-v %p:/workspace/%f ')
+                        docker run \
+                        \$MOUNTS \
+                        -v "${project.projectDir}/.gradle":/tmp/.gradle \
+                        --name ubuntu-opencv_build-container \
+                        --rm ubuntu-opencv_build \
+                        /bin/bash -c 'GRADLE_USER_HOME=/tmp/.gradle ./gradlew build'
                     """)
                 standardOutput = System.out
                 errorOutput = System.err
