@@ -36,7 +36,7 @@ tasks.register("dockerBuild") {
             println("MOUNTS: \n" + mounts)
             exec {
                 commandLine(
-                    "sh", "-c", "docker run ${mounts} --name ubuntu-opencv_build-container --rm ubuntu-opencv_build /bin/bash -c './gradlew build --info'"
+                    "sh", "-c", "docker run ${mounts} --name ubuntu-opencv_build-container --rm ubuntu-opencv_build /bin/bash -c './gradlew build --debug'"
                 )
                 standardOutput = System.out
                 errorOutput = System.err
