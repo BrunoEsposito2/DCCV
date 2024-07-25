@@ -101,8 +101,8 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v4
       with:
-        context: .
-        push: true
+        context: ./domain
+        pull: true
         tags: brunoesposito2/ubuntu_opencv_build
 
     - name: Run Gradle tests
