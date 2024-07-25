@@ -30,11 +30,10 @@ tasks.register("dockerBuild") {
         doLast {
             exec {
                 commandLine(
-                    "sh", "-c",
-                    """
-                        echo $(pwd) &&
+                    "sh", "-c", """
+                        echo ${project.projectDir} &&
                         echo "pwd stampato" &&
-                        docker run -v \$(pwd)/../:/workspace -v /workspace/.gradle -v \$(pwd)/../.gradle:/tmp/.gradle --name ubuntu-opencv_build-container --rm ubuntu-opencv_build /bin/bash -c 'GRADLE_USER_HOME=/tmp/.gradle ./gradlew build'
+                        docker run -v ${project.projectDir}:/workspace -v /workspace/.gradle -v ${project.projectDir}/.gradle:/tmp/.gradle --name ubuntu-opencv_build-container --rm ubuntu-opencv_build /bin/bash -c 'GRADLE_USER_HOME=/tmp/.gradle ./gradlew build'
                     """)
                 standardOutput = System.out
                 errorOutput = System.err
