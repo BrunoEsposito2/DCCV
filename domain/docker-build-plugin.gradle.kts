@@ -39,9 +39,10 @@ tasks.register("dockerBuild") {
                     "sh", "-c", """
                         docker run \
                         ${mounts} \
+                        -v /workspace/.gradle \
                         --name ubuntu-opencv_build-container \
                         --rm ubuntu-opencv_build \
-                        /bin/bash -c './gradlew build'
+                        /bin/bash -c 'GRADLE_USER_HOME=/workspace/.gradle ./gradlew build'
                     """
                 )
                 standardOutput = System.out
