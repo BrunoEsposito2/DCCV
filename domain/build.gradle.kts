@@ -84,7 +84,7 @@ tasks.withType<CppCompile>().configureEach {
 apply(from = "docker-build-plugin.gradle.kts")
 
 tasks.test {
-    dependsOn("build", "assemble", "check")
+    dependsOn(tasks.withType<CppCompile>(), tasks.withType<LinkExecutable>())
     doLast {
         exec {
             commandLine("sh", "-c", "/domain/build/release/run.sh")
