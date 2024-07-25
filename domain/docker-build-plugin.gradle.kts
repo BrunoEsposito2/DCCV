@@ -35,7 +35,7 @@ tasks.register("dockerBuild") {
                         echo $(pwd) &&
                         echo "pwd stampato" &&
                         docker run -v \$(pwd)/../:/workspace -v /workspace/.gradle -v \$(pwd)/../.gradle:/tmp/.gradle --name ubuntu-opencv_build-container --rm ubuntu-opencv_build /bin/bash -c 'GRADLE_USER_HOME=/tmp/.gradle ./gradlew build'
-                    """.trimMargin()
+                    """)
                 )
                 standardOutput = System.out
                 errorOutput = System.err
