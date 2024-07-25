@@ -86,7 +86,7 @@ apply(from = "docker-build-plugin.gradle.kts")
 tasks.test {
     exec {
         commandLine("sh", "-c", """
-            ./gradlew dockerBuild &&
+            .././gradlew dockerBuild &&
             cd domain/build/release &&
             ./run.sh
             """)
