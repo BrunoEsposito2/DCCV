@@ -94,11 +94,12 @@ jobs:
         EOF
 
     - name: Run Gradle tests
-      uses: addnab/docker-run-action@v3
       if: ${{ steps.determine-next.outputs.next_branch != '' }}
-      run: |
-        subproject="${GITHUB_REF#refs/heads/}"
-        ./gradlew ${subproject}:test
+      uses: addnab/docker-run-action@v3
+      with:
+        run: |
+          subproject="${GITHUB_REF#refs/heads/}"
+          ./gradlew ${subproject}:test
 
     - name: Push changes to next branch if tests pass
       if: ${{ success() && steps.determine-next.outputs.next_branch != '' }}
