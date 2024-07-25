@@ -96,6 +96,8 @@ jobs:
     - name: Run Gradle tests
       if: ${{ steps.determine-next.outputs.next_branch != '' }}
       run: |
+        ls -l /var/run/docker.sock
+        groups
         subproject="${GITHUB_REF#refs/heads/}"
         ./gradlew ${subproject}:test
 
