@@ -28,17 +28,21 @@ tasks.register("dockerBuild") {
             }
         }
         doLast {
+            val mounts = project.projectDir.parentFile.listFiles()
+                ?.filter { it.name != ".gradle" }
+                ?.map { "-v ${it.absolutePath}:/workspace/${it.name}" }
+            println("MOUNTS: \n" + mounts)
             exec {
                 commandLine(
                     "sh", "-c", """
-                        MOUNTS=$(find "${project.projectDir}"/.. -mindepth 1 -maxdepth 1 -not -name .gradle -printf '-v %p:/workspace/%f ')
                         docker run \
-                        \$MOUNTS \
+                        ${mounts} \
                         -v "${project.projectDir}/.gradle":/tmp/.gradle \
                         --name ubuntu-opencv_build-container \
                         --rm ubuntu-opencv_build \
                         /bin/bash -c 'GRADLE_USER_HOME=/tmp/.gradle ./gradlew build'
-                    """)
+                    """
+                )
                 standardOutput = System.out
                 errorOutput = System.err
             }
