@@ -88,9 +88,9 @@ tasks.test {
         exec {
             commandLine("sh", "-c", """
                 docker run \
-                -v "${System.getenv("GITHUB_WORKSPACE")}":/workspace \
+                -v /home/runner/work/DCCV/DCCV:/workspace \
                 -v /workspace/.gradle \
-                -v "${System.getenv("GITHUB_WORKSPACE")}"/.gradle:/tmp/.gradle \
+                -v /home/runner/work/DCCV/DCCV/.gradle:/tmp/.gradle \
                 --name ubuntu-opencv_build-container \
                 --rm brunoesposito2/ubuntu_opencv_build \
                 /bin/bash -c 'GRADLE_USER_HOME=/tmp/.gradle ./gradlew build' && \
