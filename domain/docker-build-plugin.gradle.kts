@@ -20,6 +20,6 @@ tasks.register("dockerBuild") {
             }
         }
     } else {
-        standardOutput = println("dockerBuild task will only be executed via github action")
+        println("dockerBuild task will only be executed via github action")
     }
 }
