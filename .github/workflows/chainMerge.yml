@@ -98,18 +98,22 @@ jobs:
       with:
         driver: docker-container
 
-    - name: Build and push Docker image
+    - name: Build and push Docker image in order to Run Gradle tests
       uses: docker/build-push-action@v4
       with:
         context: ./domain
         pull: true
         tags: brunoesposito2/ubuntu_opencv_build
-
-    - name: Run Gradle tests
       if: ${{ steps.determine-next.outputs.next_branch != '' }}
       run: |
         subproject="${GITHUB_REF#refs/heads/}"
         ./gradlew ${subproject}:test
+
+#    - name: Run Gradle tests
+#      if: ${{ steps.determine-next.outputs.next_branch != '' }}
+#      run: |
+#        subproject="${GITHUB_REF#refs/heads/}"
+#        ./gradlew ${subproject}:test
 
     - name: Push changes to next branch if tests pass
       if: ${{ success() && steps.determine-next.outputs.next_branch != '' }}
