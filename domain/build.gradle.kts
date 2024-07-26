@@ -86,11 +86,12 @@ apply(from = "docker-build-plugin.gradle.kts")
 tasks.test {
     doLast {
         exec {
+            println("Running: " + System.getenv("GITHUB_WORKSPACE"))
             commandLine("sh", "-c", """
                 docker run \
-                -v /home/runner/work/DCCV/DCCV:/workspace \
+                -v "${System.getenv("GITHUB_WORKSPACE")}":/workspace \
                 -v /workspace/.gradle \
-                -v /home/runner/work/DCCV/DCCV/.gradle:/tmp/.gradle \
+                -v "${System.getenv("GITHUB_WORKSPACE")}"/.gradle:/tmp/.gradle \
                 --name ubuntu-opencv_build-container \
                 --rm brunoesposito2/ubuntu_opencv_build \
                 /bin/bash -c 'GRADLE_USER_HOME=/tmp/.gradle ./gradlew build' && \
