@@ -18,6 +18,7 @@ jobs:
 
     container:
       image: brunoesposito2/ubuntu_opencv_build
+      options: --user root
 
     services:
       mongodb:
@@ -35,6 +36,12 @@ jobs:
           --health-retries 5
 
     steps:
+    - name: Install git on docker
+      run: |
+        apt-get update
+        apt-get install -y git
+        git --version
+
     - name: Checkout repository
       uses: actions/checkout@v4.1.5
       if: inputs.token == ''
