@@ -110,7 +110,12 @@ jobs:
       if: ${{ steps.determine-next.outputs.next_branch != '' }}
       run: |
         subproject="${GITHUB_REF#refs/heads/}"
-        docker run --rm brunoesposito2/ubuntu_opencv_build .././gradlew ${subproject}:test
+        docker run -v ${{ github.workspace }}:/workspace \
+               -v /workspace/.gradle \
+               -v ${{ github.workspace }}/.gradle:/tmp/.gradle \
+               --name ubuntu-opencv_build-container \
+               --rm brunoesposito2/ubuntu_opencv_build \
+               /bin/bash -c "GRADLE_USER_HOME=/tmp/.gradle ./gradlew build"
 
     - name: Push changes to next branch if tests pass
       if: ${{ success() && steps.determine-next.outputs.next_branch != '' }}
