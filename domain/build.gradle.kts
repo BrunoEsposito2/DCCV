@@ -81,7 +81,7 @@ tasks.withType<CppCompile>().configureEach {
 /*
 * Gradle tasks running docker image and container
 * */
-apply(from = "docker-build-plugin.gradle.kts")
+//apply(from = "docker-build-plugin.gradle.kts")
 
 tasks.test {
     doLast {
