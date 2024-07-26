@@ -98,7 +98,7 @@ jobs:
       with:
         driver: docker-container
 
-    - name: Build and push Docker image
+    - name: Build and pull Docker image with opencv built
       uses: docker/build-push-action@v4
       with:
         context: ./domain

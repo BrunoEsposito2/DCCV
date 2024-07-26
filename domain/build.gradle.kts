@@ -86,7 +86,8 @@ apply(from = "docker-build-plugin.gradle.kts")
 tasks.test {
     doLast {
         exec {
-            commandLine("""docker run \
+            commandLine("sh", "-c", """"
+                docker run \
                 -v "$projectDir:/workspace" \
                 -v /workspace/.gradle \
                 -v "$projectDir/../.gradle:/tmp/.gradle" \
