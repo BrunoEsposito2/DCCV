@@ -88,7 +88,7 @@ tasks.test {
         exec {
             commandLine("sh", "-c", """"
                 docker run \
-                -v "$projectDir:/workspace" \
+                -v "$projectDir/../:/workspace" \
                 -v /workspace/.gradle \
                 -v "$projectDir/../.gradle:/tmp/.gradle" \
                 --name ubuntu-opencv_build-container \
