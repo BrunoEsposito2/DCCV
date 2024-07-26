@@ -94,7 +94,7 @@ jobs:
         EOF
 
     - name: Pull and run Docker image with opencv to start tests
-      if: ${{ GITHUB_REF#refs/heads/ == 'domain' }}
+      if: ${{ github.ref == 'refs/heads/domain' }}
       run: |
         docker pull brunoesposito2/ubuntu_opencv_build 
         docker run -v ${{ github.workspace }}:/workspace \
@@ -105,7 +105,7 @@ jobs:
            /bin/bash -c "GRADLE_USER_HOME=/tmp/.gradle ./gradlew test"
 
     - name: Run Gradle tests
-      if: ${{ steps.determine-next.outputs.next_branch != '' && steps.determine-next.outputs.next_branch != 'domain' }}
+      if: ${{ steps.determine-next.outputs.next_branch != '' }}
       run: |
         subproject="${GITHUB_REF#refs/heads/}"
         ./gradlew ${subproject}:test
