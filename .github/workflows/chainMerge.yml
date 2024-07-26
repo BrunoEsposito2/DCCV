@@ -16,10 +16,6 @@ jobs:
   chain-merge-and-test:
     runs-on: ubuntu-latest
 
-    container:
-      image: brunoesposito2/ubuntu_opencv_build
-      options: --user root
-
     services:
       mongodb:
         image: mongo:4.4.6
@@ -36,12 +32,6 @@ jobs:
           --health-retries 5
 
     steps:
-    - name: Install git on docker
-      run: |
-        apt-get update
-        apt-get install -y git
-        git --version
-
     - name: Checkout repository
       uses: actions/checkout@v4.1.5
       if: inputs.token == ''
@@ -102,6 +92,10 @@ jobs:
           db.createCollection('tracking');
           db.tracking.insertOne({});
         EOF
+
+    - name: Pull the Docker image with opencv
+      run: |
+        docker pull brunoesposito2/ubuntu_opencv_build
 
 #    - name: Set up Docker Buildx
 #      uses: docker/setup-buildx-action@v3
