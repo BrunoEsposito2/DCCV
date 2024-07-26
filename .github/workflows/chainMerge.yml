@@ -96,7 +96,6 @@ jobs:
     - name: Pull and run Docker image with opencv to start tests
       if: ${{ github.ref == 'refs/heads/domain' }}
       run: |
-        ls -a
         docker build -t opencv-build-image ./domain
         docker run -v ${{ github.workspace }}:/workspace \
            -v /workspace/.gradle \

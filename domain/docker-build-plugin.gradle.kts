@@ -2,6 +2,7 @@ import org.gradle.internal.os.OperatingSystem
 
 tasks.register("dockerBuild") {
     if (OperatingSystem.current().isWindows) {
+        println("Windows")
         doFirst {
             exec {
                 commandLine("cmd", "/c", "docker build -t ubuntu-opencv_build .")
