@@ -11,6 +11,7 @@ on:
       - 'distribution'
     paths-ignore:
           - 'settings.gradle.*'
+          - '.github/workflows/chainMerge.yml'
 
 jobs:
   chain-merge-and-test:
@@ -110,7 +111,7 @@ jobs:
       if: ${{ steps.determine-next.outputs.next_branch != '' }}
       run: |
         subproject="${GITHUB_REF#refs/heads/}"
-        ./gradlew ${subproject}:test
+        docker run --rm brunoesposito2/ubuntu_opencv_build ./gradlew ${subproject}:test
 
     - name: Push changes to next branch if tests pass
       if: ${{ success() && steps.determine-next.outputs.next_branch != '' }}
