@@ -84,10 +84,17 @@ tasks.withType<CppCompile>().configureEach {
 apply(from = "docker-build-plugin.gradle.kts")
 
 tasks.test {
-    dependsOn(tasks.withType<CppCompile>(), tasks.withType<LinkExecutable>())
     doLast {
         exec {
-            commandLine("sh", "-c", "/domain/build/release/run.sh")
+            commandLine("""docker run \
+                -v "$projectDir:/workspace" \
+                -v /workspace/.gradle \
+                -v "$projectDir/../.gradle:/tmp/.gradle" \
+                --name ubuntu-opencv_build-container \
+                --rm brunoesposito2/ubuntu_opencv_build \
+                /bin/bash -c 'GRADLE_USER_HOME=/tmp/.gradle ./gradlew build' && \
+                /domain/build/release/run.sh
+            """)
         }
     }
 }
