@@ -104,7 +104,7 @@ jobs:
            -v ${{ github.workspace }}/.gradle:/tmp/.gradle \
            --name ubuntu-opencv_build-container \
            --rm brunoesposito2/ubuntu_opencv_build \
-           /bin/bash -c 
+           /bin/bash 
 
 #    - name: Set up Docker Buildx
 #      uses: docker/setup-buildx-action@v3
