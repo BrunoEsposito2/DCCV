@@ -81,22 +81,13 @@ tasks.withType<CppCompile>().configureEach {
 /*
 * Gradle tasks running docker image and container
 * */
-//apply(from = "docker-build-plugin.gradle.kts")
+apply(from = "docker-build-plugin.gradle.kts")
 
-tasks.test {
+tasks.register("cpp-algorithm-test") {
+    dependsOn(tasks.withType<CppCompile>(), tasks.withType<LinkExecutable>())
     doLast {
         exec {
-            println("Running: " + System.getenv("GITHUB_WORKSPACE"))
-            commandLine("sh", "-c", """
-                docker run \
-                -v "${System.getenv("GITHUB_WORKSPACE")}":/workspace \
-                -v /workspace/.gradle \
-                -v "${System.getenv("GITHUB_WORKSPACE")}"/.gradle:/tmp/.gradle \
-                --name ubuntu-opencv_build-container \
-                --rm brunoesposito2/ubuntu_opencv_build \
-                /bin/bash -c 'GRADLE_USER_HOME=/tmp/.gradle ./gradlew build' && \
-                /domain/build/release/run.sh
-            """)
+            commandLine("sh", "-c", "/domain/build/release/run.sh")
         }
     }
 }
