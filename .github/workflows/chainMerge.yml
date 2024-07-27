@@ -93,7 +93,7 @@ jobs:
           db.tracking.insertOne({});
         EOF
 
-    - name: Pull and run Docker image with opencv to start tests
+    - name: Run Domain Branch Gradle Test
       if: ${{ github.ref == 'refs/heads/domain' }}
       run: |
         docker build -t opencv-build-image ./domain

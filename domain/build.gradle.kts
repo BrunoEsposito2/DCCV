@@ -85,10 +85,10 @@ apply(from = "docker-build-plugin.gradle.kts")
 
 tasks.test {
     doLast {
-        println("File/Dir lists: " + project.projectDir.listFiles())
         val runScript = project.projectDir
             .walk()
             .filter { it.isFile && it.name == "run.sh" }
+            // prende il secondo script "run.sh" (nella directory di release invece che nella directory principale del progetto)
             .elementAt(1)
         if (runScript.exists()) {
             exec {
