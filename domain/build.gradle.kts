@@ -85,7 +85,7 @@ apply(from = "docker-build-plugin.gradle.kts")
 
 tasks.test {
     doLast {
-        val runScript = project.projectDir.listFiles { el -> el.name == "domain" }
+        val runScript = project.projectDir.listFiles { el -> el.name == "DCCV/domain" }
             ?.get(0)
             ?.walk()
             ?.filter { it.isFile && it.name == "run.sh" }
