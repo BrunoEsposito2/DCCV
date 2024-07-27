@@ -86,12 +86,11 @@ apply(from = "docker-build-plugin.gradle.kts")
 tasks.test {
     doLast {
         println("File/Dir lists: " + project.projectDir.listFiles())
-        val runScript = project.projectDir.listFiles { el -> el.name == "DCCV/domain" }
-            ?.get(0)
-            ?.walk()
-            ?.filter { it.isFile && it.name == "run.sh" }
-            ?.firstOrNull()
-        if (runScript != null) {
+        val runScript = project.projectDir
+            .walk()
+            .filter { it.isFile && it.name == "run.sh" }
+            .elementAt(1)
+        if (runScript.exists()) {
             exec {
                 commandLine("sh", "-c", """
                     chmod +x ${runScript.absolutePath} &&
