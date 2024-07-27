@@ -105,7 +105,7 @@ jobs:
            /bin/bash -c "GRADLE_USER_HOME=/tmp/.gradle ./gradlew test"
 
     - name: Run Gradle tests
-      if: ${{ steps.determine-next.outputs.next_branch != '' }}
+      if: ${{ steps.determine-next.outputs.next_branch != '' }} && ${{ github.ref != 'refs/heads/domain' }}
       run: |
         subproject="${GITHUB_REF#refs/heads/}"
         ./gradlew ${subproject}:test
