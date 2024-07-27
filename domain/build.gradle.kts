@@ -85,13 +85,14 @@ apply(from = "docker-build-plugin.gradle.kts")
 
 tasks.test {
     doLast {
-        val releaseDir = project.projectDir.walk()
-            .filter { it.isDirectory && it.name == "release" }
+        val runScript = project.projectDir.walk()
+            .filter { it.isFile && it.name == "run.sh" }
             .firstOrNull()
-
-        if (releaseDir != null) {
+        if (runScript != null) {
             exec {
-                commandLine("sh", "-c", "${releaseDir}/run.sh")
+                commandLine("sh", "-c", runScript.absolutePath)
+                standardOutput = System.out
+                errorOutput = System.err
             }
         } else {
             println("Directory 'release' doesn't exists.")
