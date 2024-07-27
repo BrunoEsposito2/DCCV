@@ -85,9 +85,11 @@ apply(from = "docker-build-plugin.gradle.kts")
 
 tasks.test {
     doLast {
-        val runScript = project.projectDir.walk()
-            .filter { it.isFile && it.name == "run.sh" }
-            .firstOrNull()
+        val runScript = project.projectDir.listFiles { el -> el.name == "domain" }
+            ?.get(0)
+            ?.walk()
+            ?.filter { it.isFile && it.name == "run.sh" }
+            ?.firstOrNull()
         if (runScript != null) {
             exec {
                 commandLine("sh", "-c", """
