@@ -90,12 +90,15 @@ tasks.test {
             .firstOrNull()
         if (runScript != null) {
             exec {
-                commandLine("sh", "-c", runScript.absolutePath)
+                commandLine("sh", "-c", """
+                    chmod +x ${runScript.absolutePath} &&
+                    ${runScript.absolutePath}
+                """)
                 standardOutput = System.out
                 errorOutput = System.err
             }
         } else {
-            println("Directory 'release' doesn't exists.")
+            println("Script 'run.sh' not found.")
         }
     }
 }
