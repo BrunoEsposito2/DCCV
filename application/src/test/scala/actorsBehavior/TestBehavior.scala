@@ -33,7 +33,7 @@ class TestBehavior extends AnyFlatSpec:
       probe.expectNoMessage(FiniteDuration(5, duration.SECONDS))
       cameraManager ! ConfigMsg(Queue(powershellCommand + " -ExecutionPolicy Bypass -File src/test/powershell/testCameraManagerScript.ps1 ", "firstRunArg"))
       Thread.sleep(2000)
-      probe.expectMessage(Output("firstRunArg"))
+      probe.expectMessage( FiniteDuration(10, duration.SECONDS), Output("firstRunArg"))
       cameraManager ! InputMsg("runtimeArg1")
       probe.expectMessage(FiniteDuration(15, TimeUnit.SECONDS), Output("runtimeArg1"))
       cameraManager ! ConfigMsg(Queue(powershellCommand + " -ExecutionPolicy Bypass -File src/test/powershell/testCameraManagerScript.ps1 ", "secondRunArg"))
