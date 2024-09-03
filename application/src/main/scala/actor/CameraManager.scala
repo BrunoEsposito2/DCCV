@@ -1,5 +1,6 @@
 package actor
 
+import akka.actor.typed
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
@@ -20,13 +21,27 @@ object CameraManager:
 
 private class CameraManager(info:Info, child:ClientLauncher, childStdin:Option[PrintWriter], port:Integer, outputRef:Ref) extends ReachableActor(info):
 
+  override def create(): Behavior =
+    Behaviors.setup { context => 
+      context.system.receptionist.tell(Receptionist.register(ServiceKey[Message]("inputs"), context.self))
+      CameraManager(setActorInfo(context), child, childStdin, port, outputRef).behavior()
+    }
+
+  override def setActorInfo(ctx: Context): Info =
+    super.setActorInfo(ctx).setActorType("CameraManager").addRef(outputRef)
+    
+  override def behavior(): Behavior =
+    Behaviors.setup { context =>
+      Behaviors.receiveMessagePartial(getReachableBehavior.orElse(getManagingBehavior))
+    }
+    
   private def getManagingBehavior: PartialFunction[Message, Behavior] =
     case ConfigMsg(args) =>
       //on receiving new cv configuration, become an updated version of the CameraManager actor
-      if(childStdin.nonEmpty) {
+      if(childStdin.nonEmpty)
         childStdin.get.println("k")
-        Thread.sleep(5000)
-      }
+        Thread.sleep(2000)
+        
       val newChild = ClientLauncher(port, args, info.self.asInstanceOf[ActorRef[InputServiceMsg]], outputRef)
       Thread(newChild).start()
       Thread.sleep(2000)
@@ -47,17 +62,3 @@ private class CameraManager(info:Info, child:ClientLauncher, childStdin:Option[P
 
     case SetOutputRef(ref) =>
       CameraManager(info.resetLinkedActors().addRef(ref), child, childStdin, port, ref).behavior()
-
-  override def setActorInfo(ctx:Context): Info =
-    super.setActorInfo(ctx).setActorType("CameraManager").addRef(outputRef)
-    
-  override def behavior(): Behavior =
-    Behaviors.setup { context => {
-      val updatedInfo: Info = setActorInfo(context)
-      if(updatedInfo != info)
-        CameraManager(updatedInfo, child, childStdin, port, outputRef).behavior()
-      else
-        context.system.receptionist.tell(Receptionist.register(ServiceKey[Message]("inputs"), context.self))
-        Behaviors.receiveMessagePartial(getReachableBehavior.orElse(getManagingBehavior))
-    }
-  }
