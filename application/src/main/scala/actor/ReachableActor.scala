@@ -1,7 +1,7 @@
 package actor
 
 import akka.actor.typed.Behavior
-import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import message.{Message, Ping, Pong}
 import utils.Info
 
@@ -11,9 +11,14 @@ object ReachableActor:
 private class ReachableActor(val info:Info):
 
   def getReachableBehavior: PartialFunction[Message, Behavior[Message]] =
-     case Ping(replyTo) => replyTo ! Pong(info)
+    case Ping(replyTo) => replyTo ! Pong(info)
       Behaviors.same
       
+  def setActorInfo(ctx:ActorContext[Message]):Info =
+    if(info.self == null) info.setSelfRef(ctx.self)
+    else info
+  
   def behavior(): Behavior[Message] = Behaviors.setup { context =>
-    Behaviors.receiveMessagePartial(getReachableBehavior)
+    if(info.self == null) ReachableActor(this.setActorInfo(context)).behavior()
+    else Behaviors.receiveMessagePartial(getReachableBehavior)
   }

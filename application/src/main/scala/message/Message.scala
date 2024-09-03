@@ -1,5 +1,6 @@
 package message
 
+import akka.actor.typed.receptionist.Receptionist
 import akka.actor.typed.{ActorRef, Behavior}
 import utils.Info
 
@@ -17,8 +18,14 @@ case class ConfigMsg(args:Queue[String]) extends InputServiceMsg
 case class InputMsg(arg:String) extends InputServiceMsg
 case class SetOutputRef(ref:ActorRef[OutputServiceMsg]) extends InputServiceMsg
 
-
 trait OutputServiceMsg extends Message
 case class Output(s:String) extends OutputServiceMsg
+
+trait SupervisorServiceMsg extends Message
+case class InputsListing(listing: Set[ActorRef[Message]]) extends SupervisorServiceMsg
+case class GetInputs() extends Message
+
+case class OutputListing(listing: Set[ActorRef[OutputServiceMsg]]) extends SupervisorServiceMsg
+case class GetOutputs() extends Message
 
 
