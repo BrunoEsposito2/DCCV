@@ -23,7 +23,6 @@ class TestUtils extends AnyFlatSpec:
     Thread.sleep(5000)
     stdin.get.println("testInput")
     probe.expectMessage(Output("testInput"))
-    stdin.get.println("k")
 
   def testInfo(): Unit =
     val probe = testKit.createTestProbe[Message]()
