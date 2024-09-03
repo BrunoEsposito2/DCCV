@@ -22,31 +22,28 @@ class TestBehavior extends AnyFlatSpec:
   def testPong(): Unit =
     val pinger = testKit.createTestProbe[Message]()
     val exampleInfo = Info()
-    val actorRef = testKit.spawn(ReachableActor(exampleInfo).behavior())
+    val actorRef = testKit.spawn(ReachableActor(exampleInfo).create())
     actorRef ! Ping(pinger.ref)
     pinger.expectMessage(Pong(exampleInfo.setSelfRef(actorRef)))
 
   def testCameraManagerBehavior():Unit =
-    try {
-      val probe = testKit.createTestProbe[OutputServiceMsg]()
-      val cameraManager = testKit.spawn(CameraManager(Info(), null, Option.empty, 9999, probe.ref).behavior())
-      probe.expectNoMessage(FiniteDuration(5, duration.SECONDS))
-      cameraManager ! ConfigMsg(Queue(powershellCommand + " -ExecutionPolicy Bypass -File src/test/powershell/testCameraManagerScript.ps1 ", "firstRunArg"))
-      Thread.sleep(2000)
-      probe.expectMessage( FiniteDuration(10, duration.SECONDS), Output("firstRunArg"))
-      cameraManager ! InputMsg("runtimeArg1")
-      probe.expectMessage(FiniteDuration(15, TimeUnit.SECONDS), Output("runtimeArg1"))
-      cameraManager ! ConfigMsg(Queue(powershellCommand + " -ExecutionPolicy Bypass -File src/test/powershell/testCameraManagerScript.ps1 ", "secondRunArg"))
-      probe.expectMessage(FiniteDuration(15, TimeUnit.SECONDS), Output("secondRunArg"))
-      cameraManager ! InputMsg("runtimeArg2")
-      probe.expectMessage(Output("runtimeArg2"))
-      cameraManager ! InputMsg("k")
-      val pingProbe = testKit.createTestProbe[PingServiceMsg]()
-      cameraManager ! Ping(pingProbe.ref)
-      pingProbe.expectMessage(Pong(Info(cameraManager.ref, Set(probe.ref), "CameraManager")))
-    } catch {
-      case e: Exception => e.printStackTrace()
-    }
+    val probe = testKit.createTestProbe[OutputServiceMsg]()
+    val cameraManager = testKit.spawn(CameraManager(Info(), null, Option.empty, 9999, probe.ref).create())
+    probe.expectNoMessage(FiniteDuration(5, duration.SECONDS))
+    cameraManager ! ConfigMsg(Queue(powershellCommand + " -ExecutionPolicy Bypass -File src/test/powershell/testCameraManagerScript.ps1 ", "firstRunArg"))
+    Thread.sleep(2000)
+    probe.expectMessage( FiniteDuration(10, duration.SECONDS), Output("firstRunArg"))
+    cameraManager ! InputMsg("runtimeArg1")
+    probe.expectMessage(FiniteDuration(10, TimeUnit.SECONDS), Output("runtimeArg1"))
+    cameraManager ! ConfigMsg(Queue(powershellCommand + " -ExecutionPolicy Bypass -File src/test/powershell/testCameraManagerScript.ps1 ", "secondRunArg"))
+    probe.expectMessage(FiniteDuration(10, TimeUnit.SECONDS), Output("secondRunArg"))
+    cameraManager ! InputMsg("runtimeArg2")
+    probe.expectMessage(Output("runtimeArg2"))
+    cameraManager ! InputMsg("k")
+    val pingProbe = testKit.createTestProbe[PingServiceMsg]()
+    cameraManager ! Ping(pingProbe.ref)
+    pingProbe.expectMessage(Pong(Info(cameraManager.ref, Set(probe.ref), "CameraManager")))
+
 
 
 
