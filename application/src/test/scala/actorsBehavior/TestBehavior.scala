@@ -39,6 +39,7 @@ class TestBehavior extends AnyFlatSpec:
     probe.expectMessage(FiniteDuration(15, TimeUnit.SECONDS), Output("secondRunArg"))
     cameraManager ! InputMsg("runtimeArg2")
     probe.expectMessage(Output("runtimeArg2"))
+    cameraManager ! InputMsg("k")
     val pingProbe = testKit.createTestProbe[PingServiceMsg]()
     cameraManager ! Ping(pingProbe.ref)
     pingProbe.expectMessage(Pong(Info(cameraManager.ref, Set(probe.ref), "CameraManager")))
