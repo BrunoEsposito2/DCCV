@@ -1,11 +1,11 @@
 package actorsBehavior
 
 import actor.{CameraManager, OutputSupervisor, ReachableActor}
-import akka.actor.testkit.typed.scaladsl.ActorTestKit
+import akka.actor.testkit.typed.scaladsl.{ActorTestKit, TestProbe}
 import org.scalatest.flatspec.AnyFlatSpec
 import akka.actor.typed.ActorRef
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
-import message.{ConfigMsg, InputMsg, Message, Output, OutputServiceMsg, Ping, PingServiceMsg, Pong}
+import message.{Config, Input, InputServiceFailure, InputServiceSuccess, Message, Output, OutputServiceMsg, Ping, PingServiceMsg, Pong}
 import utils.Info
 
 import java.util.concurrent.TimeUnit
@@ -30,22 +30,32 @@ class TestBehavior extends AnyFlatSpec:
     pinger.expectMessage(Pong(exampleInfo.setSelfRef(actorRef)))
 
   def testCameraManagerBehavior(): Unit =
-    val probe = testKit.createTestProbe[OutputServiceMsg]()
-    val cameraManager = testKit.spawn(CameraManager(9999, probe.ref).create())
-    probe.expectNoMessage(FiniteDuration(5, duration.SECONDS))
-    cameraManager ! ConfigMsg(Queue(powershellCommand + " -ExecutionPolicy Bypass -File src/test/powershell/testCameraManagerScript.ps1 ", "firstRunArg"))
-    Thread.sleep(2000)
-    probe.expectMessage( FiniteDuration(10, duration.SECONDS), Output("firstRunArg"))
-    cameraManager ! InputMsg("runtimeArg1")
-    probe.expectMessage(FiniteDuration(10, TimeUnit.SECONDS), Output("runtimeArg1"))
-    cameraManager ! ConfigMsg(Queue(powershellCommand + " -ExecutionPolicy Bypass -File src/test/powershell/testCameraManagerScript.ps1 ", "secondRunArg"))
-    probe.expectMessage(FiniteDuration(10, TimeUnit.SECONDS), Output("secondRunArg"))
-    cameraManager ! InputMsg("runtimeArg2")
-    probe.expectMessage(Output("runtimeArg2"))
-    cameraManager ! InputMsg("k")
+    val outputProbe = testKit.createTestProbe[OutputServiceMsg]()
+    val inputProbe = testKit.createTestProbe[Message]()
+    val cameraManager = testKit.spawn(CameraManager(9999, outputProbe.ref).create())
+    val expectedInfo = Info(cameraManager.ref, Set(outputProbe.ref), "CameraManager")
     val pingProbe = testKit.createTestProbe[PingServiceMsg]()
+
+    def sendSuccessfullConfig(arg: String): Unit =
+      cameraManager ! Config(inputProbe.ref, Queue(powershellCommand + " -ExecutionPolicy Bypass -File src/test/powershell/testCameraManagerScript.ps1 ", arg))
+      inputProbe.expectMessage(InputServiceSuccess(expectedInfo))
+      outputProbe.expectMessage(FiniteDuration(10, duration.SECONDS), Output(arg))
+
+    def sendSuccessfullInput(input: String): Unit =
+      cameraManager ! Input(inputProbe.ref, input)
+      inputProbe.expectMessage(InputServiceSuccess(expectedInfo))
+      if(input != "k")outputProbe.expectMessage(FiniteDuration(10, duration.SECONDS), Output(input))
+
+    outputProbe.expectNoMessage(FiniteDuration(5, duration.SECONDS))
+    sendSuccessfullConfig("firstRunArg")
+    sendSuccessfullInput("runtimeArg1")
+    sendSuccessfullConfig("secondRunArg")
+    sendSuccessfullInput("runtimeArg2")
+    sendSuccessfullInput("k")
+    cameraManager ! Input(inputProbe.ref, "k")
+    inputProbe.expectMessage(InputServiceFailure("Child process undefined: operation aborted for potential unwanted side effects."))
     cameraManager ! Ping(pingProbe.ref)
-    pingProbe.expectMessage(Pong(Info(cameraManager.ref, Set(probe.ref), "CameraManager")))
+    pingProbe.expectMessage(Pong(Info(cameraManager.ref, Set(outputProbe.ref), "CameraManager")))
 
   def testOutputSupervisorBehavior(): Unit =
     val pingProbe = testKit.createTestProbe[PingServiceMsg]()

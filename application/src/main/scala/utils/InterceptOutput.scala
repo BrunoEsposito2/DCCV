@@ -24,15 +24,14 @@ class ClientLauncher(port: Int, command: ArgsList, overseer: InputRef, receiver:
   def run(): Unit =
     val server = new ServerSocket(port)
     println(s"Listening on port $port")
-
-    // Launch the batch script
+    //compose the bash script
     val batchScript = command.foldLeft("")((acc,arg)=>{if (acc.isEmpty) arg else acc + " " + arg})
-
     val processIO = ProcessIO(
       stdin => {
         processStdin = Option(PrintWriter(OutputStreamWriter(stdin), true))
       }, stdout => {}, stderr => {}
     )
+    //launch the bash script and open the socket
     Process(batchScript).run(processIO)
     val client = server.accept()
     val in = BufferedReader(InputStreamReader(client.getInputStream))

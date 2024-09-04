@@ -4,7 +4,7 @@ import akka.actor.typed
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import message.{ConfigMsg, InputMsg, InputServiceMsg, Message, OutputServiceMsg, SetOutputRef}
+import message.{Config, Input, InputServiceFailure, InputServiceMsg, InputServiceSuccess, Message, OutputServiceMsg, SetOutputRef}
 import utils.{ClientLauncher, Info}
 
 import java.io.PrintWriter
@@ -41,8 +41,8 @@ private class CameraManager(info:Info, child:Option[ClientLauncher], childStdin:
     }
     
   private def getManagingBehavior: PartialFunction[Message, Behavior] =
-    case ConfigMsg(args) =>
-      //on receiving new cv configuration, become an updated version of the CameraManager actor
+    case Config(replyTo, args) =>
+      //on receiving new cv configuration, stop previous child if present and become an updated version of the CameraManager actor
       if(childStdin.nonEmpty)
         childStdin.get.println("k")
         Thread.sleep(1000)
@@ -51,22 +51,33 @@ private class CameraManager(info:Info, child:Option[ClientLauncher], childStdin:
         Thread(newChild.get).start()
         Thread.sleep(1000)
         val stdin = newChild.get.getChildProcessStdin
+        replyTo ! InputServiceSuccess(info)
         CameraManager(info, newChild, stdin, port, outputRef).behavior()
       else
+        replyTo ! InputServiceFailure("outputRef undefined")
         Behaviors.same
 
-    case InputMsg(arg) =>
-      if(childStdin.nonEmpty) 
-        childStdin.get.println(arg)
-        Behaviors.same
-      else
-        var newChildStdin: Option[PrintWriter] = Option.empty
-        while(newChildStdin.isEmpty)
-          Thread.sleep(1000)
-          newChildStdin = child.get.getChildProcessStdin
+    case Input(replyTo, arg) =>
+      (child.isEmpty, childStdin.isEmpty) match {
+        case (false, false) =>
           childStdin.get.println(arg)
-        CameraManager(info, child, newChildStdin, port, outputRef).behavior()
-
+          replyTo ! InputServiceSuccess(info)
+          if(arg=="k") CameraManager(info, Option.empty, Option.empty, port, outputRef).behavior() else Behaviors.same
+        case (false, true) =>
+          Thread.sleep(1000)
+          val newChildStdin = child.get.getChildProcessStdin
+          if(newChildStdin.isEmpty)
+            replyTo ! InputServiceFailure("Child process stdin still undefined, please retry in a few moments.")
+            Behaviors.same
+          else
+            childStdin.get.println(arg)
+            replyTo ! InputServiceSuccess(info)
+            CameraManager(info, child, newChildStdin, port, outputRef).behavior()
+        case (_, _) =>
+          replyTo ! InputServiceFailure("Child process undefined: operation aborted for potential unwanted side effects.")
+          Behaviors.same
+        }
+      
     case SetOutputRef(ref) =>
       println("RECEIVED NEW OUTPUTREF")
       CameraManager(info.resetLinkedActors().addRef(ref), child, childStdin, port, Option(ref)).behavior()

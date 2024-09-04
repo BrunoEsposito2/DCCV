@@ -2,7 +2,7 @@ package utilsTest
 
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import org.scalatest.flatspec.AnyFlatSpec
-import message.{Message, Output, PidMsg, Pong}
+import message.{Message, Output, Pong}
 import utils.{ClientLauncher, Info}
 
 import scala.collection.immutable.Queue
