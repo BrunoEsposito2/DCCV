@@ -17,19 +17,24 @@ type Behavior = akka.actor.typed.Behavior[Message]
 type Context = ActorContext[Message]
 
 object CameraManager:
-  def apply(info:Info, child:ClientLauncher, childStdin: Option[PrintWriter], port:Integer, outputRef:Ref): CameraManager = new CameraManager(info, child, childStdin, port, outputRef)
+  def apply(port:Integer, outputRef:Option[Ref] = Option.empty): CameraManager = new CameraManager(Info(), Option.empty, Option.empty, port, outputRef)
+  def apply(port:Integer, outputRef:Ref): CameraManager = new CameraManager(Info(), Option.empty, Option.empty, port, Option(outputRef))
+  private def apply(info:Info, child:Option[ClientLauncher], childStdin: Option[PrintWriter], port:Integer, outputRef:Option[Ref]): CameraManager = new CameraManager(info, child, childStdin, port, outputRef)
 
-private class CameraManager(info:Info, child:ClientLauncher, childStdin:Option[PrintWriter], port:Integer, outputRef:Ref) extends ReachableActor(info):
+private class CameraManager(info:Info, child:Option[ClientLauncher], childStdin:Option[PrintWriter], port:Integer, outputRef:Option[Ref]) extends ReachableActor(info):
 
   override def create(): Behavior =
     Behaviors.setup { context => 
-      context.system.receptionist.tell(Receptionist.register(ServiceKey[Message]("inputs"), context.self))
+      context.system.receptionist.tell(Receptionist.register(ServiceKey[InputServiceMsg]("inputs"), context.self))
       CameraManager(setActorInfo(context), child, childStdin, port, outputRef).behavior()
     }
 
   override def setActorInfo(ctx: Context): Info =
-    super.setActorInfo(ctx).setActorType("CameraManager").addRef(outputRef)
-    
+     outputRef.isEmpty match {
+       case true => super.setActorInfo(ctx).setActorType("CameraManager")
+       case _ => super.setActorInfo(ctx).setActorType("CameraManager").addRef(outputRef.get)
+     }
+     
   override def behavior(): Behavior =
     Behaviors.setup { context =>
       Behaviors.receiveMessagePartial(getReachableBehavior.orElse(getManagingBehavior))
@@ -40,13 +45,15 @@ private class CameraManager(info:Info, child:ClientLauncher, childStdin:Option[P
       //on receiving new cv configuration, become an updated version of the CameraManager actor
       if(childStdin.nonEmpty)
         childStdin.get.println("k")
-        Thread.sleep(2000)
-        
-      val newChild = ClientLauncher(port, args, info.self.asInstanceOf[ActorRef[InputServiceMsg]], outputRef)
-      Thread(newChild).start()
-      Thread.sleep(2000)
-      val stdin = newChild.getChildProcessStdin
-      CameraManager(info, newChild, stdin, port, outputRef).behavior()
+        Thread.sleep(1000)
+      if(outputRef.nonEmpty)
+        val newChild = Option(ClientLauncher(port, args, info.self.asInstanceOf[ActorRef[InputServiceMsg]], outputRef.get))
+        Thread(newChild.get).start()
+        Thread.sleep(1000)
+        val stdin = newChild.get.getChildProcessStdin
+        CameraManager(info, newChild, stdin, port, outputRef).behavior()
+      else
+        Behaviors.same
 
     case InputMsg(arg) =>
       if(childStdin.nonEmpty) 
@@ -55,10 +62,11 @@ private class CameraManager(info:Info, child:ClientLauncher, childStdin:Option[P
       else
         var newChildStdin: Option[PrintWriter] = Option.empty
         while(newChildStdin.isEmpty)
-          Thread.sleep(5000)
-          newChildStdin = child.getChildProcessStdin
+          Thread.sleep(1000)
+          newChildStdin = child.get.getChildProcessStdin
           childStdin.get.println(arg)
         CameraManager(info, child, newChildStdin, port, outputRef).behavior()
 
     case SetOutputRef(ref) =>
-      CameraManager(info.resetLinkedActors().addRef(ref), child, childStdin, port, ref).behavior()
+      println("RECEIVED NEW OUTPUTREF")
+      CameraManager(info.resetLinkedActors().addRef(ref), child, childStdin, port, Option(ref)).behavior()
