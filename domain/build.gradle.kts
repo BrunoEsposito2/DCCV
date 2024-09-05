@@ -108,20 +108,21 @@ tasks.test {
     }
 }
 
-// Configurazione Git Hooks
+// Git Hooks configuration
 gitHooks {
     setHooks(mapOf("pre-commit" to "spotlessApply check"))
     setHooks(mapOf("commit-msg" to "conventionalCommits"))
     setHooksDirectory(layout.projectDirectory.dir("../.git/hooks"))
 }
 
+// Conventional commits rules to add for commits checking
 tasks.register("conventionalCommits") {
     val pattern = Pattern.compile("^(feat|fix|docs|style|refactor|test|chore|build|ci)(\\(.*\\))?: .{1,50}")
     val message = File(".git/COMMIT_EDITMSG").readText().trim()
     if (!pattern.matcher(message).find()) {
-        throw GradleException("Commit message does not follow Conventional Commits format.")
+        throw GradleException("ERROR: Commit message does not follow Conventional Commits format.")
     }
 }
 
-// Installazione dei git hooks durante la build
+// Git hooks installation through the build task
 tasks.getByPath(":prepareKotlinBuildScriptModel").dependsOn.addAll(listOf(tasks.getByName("check")))
