@@ -2,7 +2,9 @@ package message
 
 import akka.actor.typed.receptionist.Receptionist
 import akka.actor.typed.{ActorRef, Behavior}
-import utils.Info
+import akka.stream.SourceRef
+import akka.util.ByteString
+import utils.{Info, InputServiceErrors}
 
 import scala.collection.immutable.Queue
 
@@ -16,8 +18,9 @@ trait InputServiceMsg extends Message
 case class Config(replyTo:ActorRef[Message], args:Queue[String]) extends InputServiceMsg
 case class Input(replyTo:ActorRef[Message], arg:String) extends InputServiceMsg
 case class InputServiceSuccess(author: Info) extends InputServiceMsg
-case class InputServiceFailure(cause: String) extends InputServiceMsg
-case class SetOutputRef(ref:ActorRef[OutputServiceMsg]) extends InputServiceMsg
+case class InputServiceFailure(cause: InputServiceErrors) extends InputServiceMsg
+case class GetSourceRef(replyTo:ActorRef[Message]) extends InputServiceMsg
+case class CameraOutputStreamSource(info:Info, sourceRef: SourceRef[ByteString]) extends InputServiceMsg
 
 trait OutputServiceMsg extends Message
 case class Output(s:String) extends OutputServiceMsg

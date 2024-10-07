@@ -4,10 +4,14 @@ import akka.actor.typed
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import message.{Config, Input, InputServiceFailure, InputServiceMsg, InputServiceSuccess, Message, OutputServiceMsg, SetOutputRef}
-import utils.{ClientLauncher, Info}
+import akka.stream.Materializer
+import akka.util.ByteString
+import message.{CameraOutputStreamSource, Config, GetSourceRef, Input, InputServiceFailure, InputServiceMsg, InputServiceSuccess, Message, OutputServiceMsg}
+import utils.{ConnectionController, Info, InputServiceErrors, StandardChildProcessCommands, StreamController}
 
-import java.io.PrintWriter
+import java.io.{OutputStreamWriter, PrintWriter}
+import scala.sys.process.*
+import java.net.SocketTimeoutException
 import scala.collection.immutable.Queue
 
 type Ref = ActorRef[OutputServiceMsg]
@@ -17,67 +21,74 @@ type Behavior = akka.actor.typed.Behavior[Message]
 type Context = ActorContext[Message]
 
 object CameraManager:
-  def apply(port:Integer, outputRef:Option[Ref] = Option.empty): CameraManager = new CameraManager(Info(), Option.empty, Option.empty, port, outputRef)
-  def apply(port:Integer, outputRef:Ref): CameraManager = new CameraManager(Info(), Option.empty, Option.empty, port, Option(outputRef))
-  private def apply(info:Info, child:Option[ClientLauncher], childStdin: Option[PrintWriter], port:Integer, outputRef:Option[Ref]): CameraManager = new CameraManager(info, child, childStdin, port, outputRef)
+  def apply(port:Integer): CameraManager = new CameraManager(Info(), Option.empty,  StreamController(), ConnectionController(port))
+  private def apply(info:Info,
+                    childStdin:Option[PrintWriter] = Option.empty,
+                    childOutputStream: StreamController = StreamController(),
+                    socket: ConnectionController): CameraManager = new CameraManager(info, childStdin, childOutputStream, socket)
 
-private class CameraManager(info:Info, child:Option[ClientLauncher], childStdin:Option[PrintWriter], port:Integer, outputRef:Option[Ref]) extends ReachableActor(info):
+private class CameraManager(info:Info, childStdin:Option[PrintWriter], childOutputStream: StreamController, socket:ConnectionController) extends ReachableActor(info):
 
   override def create(): Behavior =
-    Behaviors.setup { context => 
+    Behaviors.setup { context =>
       context.system.receptionist.tell(Receptionist.register(ServiceKey[InputServiceMsg]("inputs"), context.self))
-      CameraManager(setActorInfo(context), child, childStdin, port, outputRef).behavior()
+      implicit val ctx: ActorContext[Message] = context
+      implicit val mat: Materializer = Materializer(ctx.system)
+      CameraManager(setActorInfo(context), childStdin, childOutputStream, socket).behavior
     }
 
   override def setActorInfo(ctx: Context): Info =
-     outputRef.isEmpty match {
-       case true => super.setActorInfo(ctx).setActorType("CameraManager")
-       case _ => super.setActorInfo(ctx).setActorType("CameraManager").addRef(outputRef.get)
-     }
+    super.setActorInfo(ctx).setActorType("CameraManager")
      
-  override def behavior(): Behavior =
-    Behaviors.setup { context =>
+  override def behavior(implicit materializer: Materializer, ctx:ActorContext[Message]): Behavior =
+    Behaviors.setup { ctx =>
       Behaviors.receiveMessagePartial(getReachableBehavior.orElse(getManagingBehavior))
     }
-    
-  private def getManagingBehavior: PartialFunction[Message, Behavior] =
+
+  private def launchNewChildProcess(command: Queue[String])(implicit materializer: Materializer): (PrintWriter, ConnectionController) =
+    val bashScript = command.foldLeft("")((acc, arg) => if (acc.isEmpty) arg else acc + " " + arg)
+    var processStdin: Option[PrintWriter] = Option.empty
+    val processIO = ProcessIO(stdin => processStdin = Option(PrintWriter(OutputStreamWriter(stdin), true)), stdout => {}, stderr => {})
+    //launch the bash script and wait for the launched program to reach the socket
+    Process(bashScript).run(processIO)
+    val newConnection = socket.enstablishConnection()
+    (processStdin.get, newConnection)
+
+  private def getManagingBehavior(implicit materializer: Materializer, ctx:ActorContext[Message]): PartialFunction[Message, Behavior] =
     case Config(replyTo, args) =>
       //on receiving new cv configuration, stop previous child if present and become an updated version of the CameraManager actor
-      if(childStdin.nonEmpty)
-        childStdin.get.println("k")
-        Thread.sleep(1000)
-      if(outputRef.nonEmpty)
-        val newChild = Option(ClientLauncher(port, args, info.self.asInstanceOf[ActorRef[InputServiceMsg]], outputRef.get))
-        Thread(newChild.get).start()
-        Thread.sleep(1000)
-        val stdin = newChild.get.getChildProcessStdin
+      if(childStdin.nonEmpty) childStdin.get.println(StandardChildProcessCommands.Kill.command)
+      val newSource = childOutputStream.closeSource()
+      try
+        val (newStdin, newConnection) = launchNewChildProcess(args)
+        val ns = newSource.InitializeSource(newConnection.getClientInput.get)
         replyTo ! InputServiceSuccess(info)
-        CameraManager(info, newChild, stdin, port, outputRef).behavior()
-      else
-        replyTo ! InputServiceFailure("outputRef undefined")
-        Behaviors.same
+        CameraManager(info, Option(newStdin), ns, newConnection).behavior
+      catch
+        case e: SocketTimeoutException =>
+          replyTo ! InputServiceFailure(InputServiceErrors.MissingConnection)
+          CameraManager(info, childStdin, childOutputStream, socket).behavior
 
     case Input(replyTo, arg) =>
-      (child.isEmpty, childStdin.isEmpty) match {
-        case (false, false) =>
-          childStdin.get.println(arg)
+      (childOutputStream.getSourceRef, childStdin, arg) match
+        case (None, _, _) =>
+          replyTo ! InputServiceFailure(InputServiceErrors.MissingChild)
+          CameraManager(info, childStdin, childOutputStream, socket).behavior
+        case (Some(ref), None, _) =>
+          replyTo ! InputServiceFailure(InputServiceErrors.MissingStdin)
+          CameraManager(info, childStdin, childOutputStream, socket).behavior
+        case (Some(ref), Some(inputStream), StandardChildProcessCommands.Kill.command) =>
+          inputStream.println(arg)
           replyTo ! InputServiceSuccess(info)
-          if(arg=="k") CameraManager(info, Option.empty, Option.empty, port, outputRef).behavior() else Behaviors.same
-        case (false, true) =>
-          Thread.sleep(1000)
-          val newChildStdin = child.get.getChildProcessStdin
-          if(newChildStdin.isEmpty)
-            replyTo ! InputServiceFailure("Child process stdin still undefined, please retry in a few moments.")
-            Behaviors.same
-          else
-            childStdin.get.println(arg)
-            replyTo ! InputServiceSuccess(info)
-            CameraManager(info, child, newChildStdin, port, outputRef).behavior()
-        case (_, _) =>
-          replyTo ! InputServiceFailure("Child process undefined: operation aborted for potential unwanted side effects.")
-          Behaviors.same
-        }
-      
-    case SetOutputRef(ref) =>
-      println("RECEIVED NEW OUTPUTREF")
-      CameraManager(info.resetLinkedActors().addRef(ref), child, childStdin, port, Option(ref)).behavior()
+          CameraManager(info, Option.empty, childOutputStream.closeSource(), socket.closeConnection()).behavior
+        case (Some(ref), Some(inputStream), _) =>
+          inputStream.println(arg)
+          replyTo ! InputServiceSuccess(info)
+          CameraManager(info, childStdin, childOutputStream, socket).behavior
+
+    case GetSourceRef(replyTo) =>
+      childOutputStream.getSourceRef match
+        case Some(source) =>
+          replyTo ! CameraOutputStreamSource(info, source)
+        case None => replyTo ! InputServiceFailure(InputServiceErrors.MissingChild)
+      CameraManager(info, childStdin, childOutputStream, socket).behavior
