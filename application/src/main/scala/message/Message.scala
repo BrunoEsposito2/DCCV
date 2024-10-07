@@ -16,6 +16,7 @@ case class Pong(info:Info) extends PingServiceMsg
 
 trait InputServiceMsg extends Message
 case class Config(replyTo:ActorRef[Message], args:Queue[String]) extends InputServiceMsg
+case class ConfigServiceSuccess(author: Info, sourceRef: SourceRef[ByteString]) extends InputServiceMsg
 case class Input(replyTo:ActorRef[Message], arg:String) extends InputServiceMsg
 case class InputServiceSuccess(author: Info) extends InputServiceMsg
 case class InputServiceFailure(cause: InputServiceErrors) extends InputServiceMsg

@@ -6,7 +6,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.stream.Materializer
 import akka.util.ByteString
-import message.{CameraOutputStreamSource, Config, GetSourceRef, Input, InputServiceFailure, InputServiceMsg, InputServiceSuccess, Message, OutputServiceMsg}
+import message.{CameraOutputStreamSource, Config, ConfigServiceSuccess, GetSourceRef, Input, InputServiceFailure, InputServiceMsg, InputServiceSuccess, Message, OutputServiceMsg}
 import utils.{ConnectionController, Info, InputServiceErrors, StandardChildProcessCommands, StreamController}
 
 import java.io.{OutputStreamWriter, PrintWriter}
@@ -62,7 +62,7 @@ private class CameraManager(info:Info, childStdin:Option[PrintWriter], childOutp
       try
         val (newStdin, newConnection) = launchNewChildProcess(args)
         val ns = newSource.InitializeSource(newConnection.getClientInput.get)
-        replyTo ! InputServiceSuccess(info)
+        replyTo ! ConfigServiceSuccess(info, ns.getSourceRef.get)
         CameraManager(info, Option(newStdin), ns, newConnection).behavior
       catch
         case e: SocketTimeoutException =>

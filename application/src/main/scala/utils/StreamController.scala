@@ -32,8 +32,6 @@ class StreamController(private val source: Option[Source[ByteString, NotUsed]] =
         val (switch: KillSwitch, broadcastedSource: Source[ByteString, NotUsed]) = source.viaMat(KillSwitches.single)(Keep.right)
           .toMat(BroadcastHub.sink(bufferSize = 1))(Keep.both).run()
 
-        broadcastedSource.runForeach(f => println("SOURCE RECEIVED "+ f.utf8String.strip()))
-
         val sourceRef = broadcastedSource.toMat(StreamRefs.sourceRef())(Keep.right).run()
         StreamController(Option(broadcastedSource), Option(sourceRef), Option(switch))
 
