@@ -6,7 +6,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.Materializer
-import message.{CameraOutputStreamSource, Config, GetSourceRef, Input, InputServiceFailure, InputServiceSuccess, Message, Output, OutputServiceMsg, Ping, PingServiceMsg, Pong}
+import message.{CameraOutputStreamSource, Config, ConfigServiceSuccess, GetSourceRef, Input, InputServiceFailure, InputServiceSuccess, Message, Output, OutputServiceMsg, Ping, PingServiceMsg, Pong}
 import utils.{Info, InputServiceErrors, StandardChildProcessCommands}
 
 import scala.collection.immutable.Queue
@@ -48,9 +48,8 @@ class TestBehavior extends AnyFlatSpec:
     )
 
     def sendSuccessfullConfig(arg: String): Unit =
-      println("sending config")
       cameraManager ! Config(inputProbe.ref, Queue(powershellCommand + " -ExecutionPolicy Bypass -File src/test/powershell/testCameraManagerScript.ps1 ", arg))
-      inputProbe.expectMessage(FiniteDuration(10, duration.SECONDS), InputServiceSuccess(expectedInfo))
+      inputProbe.expectMessageType[ConfigServiceSuccess]
       cameraManager ! GetSourceRef(forwarder)
       Thread.sleep(3000)
       outputProbe.expectMessage(FiniteDuration(10, duration.SECONDS), Output(arg))
