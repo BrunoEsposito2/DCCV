@@ -43,6 +43,8 @@ dependencies {
     // https://mvnrepository.com/artifact/com.typesafe.akka/akka-slf4j
     implementation("com.typesafe.akka:akka-slf4j_3:2.8.6")
 
+    implementation("com.typesafe.akka:akka-stream-typed_3:2.8.6")
+
 }
 
 tasks {
