@@ -4,12 +4,11 @@ import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import akka.util.ByteString
 import org.scalatest.flatspec.AnyFlatSpec
 import message.{Message, Pong}
-import utils.{ConnectionController, Info, StreamController}
+import utils.ActorTypes.{Undefined, Utility}
+import utils.{ConnectionController, Info}
 
-import java.io.{OutputStreamWriter, PrintWriter}
 import scala.sys.process.*
 import java.net.{ServerSocket, SocketTimeoutException}
-import scala.collection.mutable.ArrayBuffer
 
 class TestUtils extends AnyFlatSpec:
   "An Info" should "update itself recursevly mantaining not-overriden informations" in testInfo()
@@ -24,11 +23,11 @@ class TestUtils extends AnyFlatSpec:
     probe ! Pong(info)
     probe.expectMessage(Pong(Info()))
     probe ! Pong(info.addRef(probe.ref))
-    probe.expectMessage(Pong(Info(null, Set(probe.ref), "")))
+    probe.expectMessage(Pong(Info(null, Set(probe.ref), Undefined)))
     probe ! Pong(info.addRef(probe.ref).setSelfRef(probe.ref).resetLinkedActors())
-    probe.expectMessage(Pong(Info(probe.ref, Set(), "")))
-    probe ! Pong(info.setActorType("probe"))
-    probe.expectMessage(Pong(Info(null, Set(), "probe")))
+    probe.expectMessage(Pong(Info(probe.ref, Set(), Undefined)))
+    probe ! Pong(info.setActorType(Utility))
+    probe.expectMessage(Pong(Info(null, Set(), Utility)))
 
   def testConnectionController(): Unit =
     val cc = ConnectionController(9999)

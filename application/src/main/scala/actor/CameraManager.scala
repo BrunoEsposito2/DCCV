@@ -6,8 +6,8 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.stream.Materializer
 import akka.util.ByteString
-import message.{CameraOutputStreamSource, Config, ConfigServiceSuccess, GetSourceRef, Input, InputServiceFailure, InputServiceMsg, InputServiceSuccess, Message, OutputServiceMsg}
-import utils.{ConnectionController, Info, InputServiceErrors, StandardChildProcessCommands, StreamController}
+import message.{CameraOutputStreamSource, ChildStatus, Config, ConfigServiceSuccess, GetChildStatus, GetSourceRef, Input, InputServiceFailure, InputServiceMsg, InputServiceSuccess, Message, OutputServiceMsg}
+import utils.{ActorTypes, ChildStatuses, ConnectionController, Info, InputServiceErrors, StandardChildProcessCommands, StreamController}
 
 import java.io.{OutputStreamWriter, PrintWriter}
 import scala.sys.process.*
@@ -38,7 +38,7 @@ private class CameraManager(info:Info, childStdin:Option[PrintWriter], childOutp
     }
 
   override def setActorInfo(info:Info)(implicit ctx: Context): Info =
-    super.setActorInfo(info).setActorType("CameraManager")
+    super.setActorInfo(info).setActorType(ActorTypes.CameraManager)
      
   def behavior(implicit materializer: Materializer, ctx:ActorContext[Message]): Behavior =
     Behaviors.setup { ctx =>
@@ -92,3 +92,13 @@ private class CameraManager(info:Info, childStdin:Option[PrintWriter], childOutp
           replyTo ! CameraOutputStreamSource(info, source)
         case None => replyTo ! InputServiceFailure(InputServiceErrors.MissingChild)
       CameraManager(info, childStdin, childOutputStream, socket).behavior
+
+    case GetChildStatus(replyTo) =>
+      (childOutputStream.getSourceRef, childStdin) match
+        case (Some(stream), Some(printWriter)) =>
+          replyTo ! ChildStatus(info, ChildStatuses.Running)
+        case _ => 
+          replyTo ! ChildStatus(info, ChildStatuses.Idle)
+      CameraManager(info, childStdin, childOutputStream, socket).behavior    
+      
+          
