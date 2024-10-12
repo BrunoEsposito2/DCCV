@@ -27,22 +27,22 @@ object CameraManager:
                     childOutputStream: StreamController = StreamController(),
                     socket: ConnectionController): CameraManager = new CameraManager(info, childStdin, childOutputStream, socket)
 
-private class CameraManager(info:Info, childStdin:Option[PrintWriter], childOutputStream: StreamController, socket:ConnectionController) extends ReachableActor(info):
+private class CameraManager(info:Info, childStdin:Option[PrintWriter], childOutputStream: StreamController, socket:ConnectionController) extends ReachableActor:
 
-  override def create(): Behavior =
+  def create(): Behavior =
     Behaviors.setup { context =>
       context.system.receptionist.tell(Receptionist.register(ServiceKey[InputServiceMsg]("inputs"), context.self))
       implicit val ctx: ActorContext[Message] = context
       implicit val mat: Materializer = Materializer(ctx.system)
-      CameraManager(setActorInfo(context), childStdin, childOutputStream, socket).behavior
+      CameraManager(setActorInfo(Info()), childStdin, childOutputStream, socket).behavior
     }
 
-  override def setActorInfo(ctx: Context): Info =
-    super.setActorInfo(ctx).setActorType("CameraManager")
+  override def setActorInfo(info:Info)(implicit ctx: Context): Info =
+    super.setActorInfo(info).setActorType("CameraManager")
      
-  override def behavior(implicit materializer: Materializer, ctx:ActorContext[Message]): Behavior =
+  def behavior(implicit materializer: Materializer, ctx:ActorContext[Message]): Behavior =
     Behaviors.setup { ctx =>
-      Behaviors.receiveMessagePartial(getReachableBehavior.orElse(getManagingBehavior))
+      Behaviors.receiveMessagePartial(getReachableBehavior(info).orElse(getManagingBehavior))
     }
 
   private def launchNewChildProcess(command: Queue[String])(implicit materializer: Materializer): (PrintWriter, ConnectionController) =

@@ -3,8 +3,8 @@ package actorsBehavior
 import actor.{CameraManager, ReachableActor}
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import org.scalatest.flatspec.AnyFlatSpec
-import akka.actor.typed.ActorRef
-import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.stream.Materializer
 import message.{CameraOutputStreamSource, Config, ConfigServiceSuccess, GetSourceRef, Input, InputServiceFailure, InputServiceSuccess, Message, Output, OutputServiceMsg, Ping, PingServiceMsg, Pong}
 import utils.{Info, InputServiceErrors, StandardChildProcessCommands}
@@ -19,10 +19,22 @@ class TestBehavior extends AnyFlatSpec:
   "A CameraManager" should "instantiate a child process and reset it when a new ConfigMessage is received and manage its I/O" in testCameraManagerBehavior()
 
   def testReachableBehavior(): Unit =
+    class ConcreteReachableActor extends ReachableActor:
+      def create():Behavior[Message] =
+        Behaviors.setup { context =>
+          implicit val ctx: ActorContext[Message] = context
+          implicit val mat: Materializer = Materializer(ctx.system)
+          this.behavior(super.setActorInfo(Info()))
+        }
+      def behavior(info:Info)(implicit materializer: Materializer, ctx:ActorContext[Message]): Behavior[Message] =
+        Behaviors.setup { ctx =>
+          Behaviors.receiveMessagePartial(getReachableBehavior(info))
+        }
     val testKit: ActorTestKit = ActorTestKit()
     val pinger = testKit.createTestProbe[Message]()
     val exampleInfo = Info()
-    val actorRef = testKit.spawn(ReachableActor(exampleInfo).create())
+    val reachableActor = new ConcreteReachableActor()
+    val actorRef = testKit.spawn(reachableActor.create())
     actorRef ! Ping(pinger.ref)
     pinger.expectMessage(Pong(exampleInfo.setSelfRef(actorRef)))
 
