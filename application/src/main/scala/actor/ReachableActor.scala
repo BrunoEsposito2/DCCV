@@ -6,27 +6,12 @@ import akka.stream.Materializer
 import message.{Message, Ping, Pong}
 import utils.Info
 
-object ReachableActor:
-  def apply(info: Info): ReachableActor = new ReachableActor(info)
+trait ReachableActor:
 
-private class ReachableActor(val info:Info):
-
-  def create(): Behavior[Message] =
-    Behaviors.setup { context =>
-      implicit val ctx: ActorContext[Message] = context
-      implicit val mat: Materializer = Materializer(context.system)
-      ReachableActor(this.setActorInfo(ctx)).behavior
-    }
-
-  protected def setActorInfo(ctx: ActorContext[Message]): Info =
+  protected def setActorInfo(info: Info)(implicit ctx: ActorContext[Message]): Info =
     if (info.self == null) info.setSelfRef(ctx.self)
     else info
-
-  protected def behavior(implicit mat: Materializer, context:ActorContext[Message]): Behavior[Message] =
-    Behaviors.setup { context =>
-      Behaviors.receiveMessagePartial(getReachableBehavior)
-    }
   
-  protected def getReachableBehavior(implicit mat: Materializer, context:ActorContext[Message]): PartialFunction[Message, Behavior[Message]] =
+  protected def getReachableBehavior(info: Info)(implicit mat: Materializer, context:ActorContext[Message], behavior:Behavior[Message] = Behaviors.same): PartialFunction[Message, Behavior[Message]] =
     case Ping(replyTo) => replyTo ! Pong(info)
-      ReachableActor(info).behavior
+      behavior
