@@ -7,6 +7,15 @@ enum InputServiceErrors(val log: String):
   
 enum StandardChildProcessCommands(val command: String):
   case Kill extends StandardChildProcessCommands("k")
-
+  
+enum ChildStatuses(val status: String):
+  case Running extends ChildStatuses("Running")
+  case Idle extends ChildStatuses("Idle")
+  
+enum ActorTypes(val actorType:String):
+  case CameraManager extends ActorTypes("CameraManager")
+  case Client extends ActorTypes("Client")
+  case Utility extends ActorTypes("Utility")
+  case Undefined extends ActorTypes("Undefined")
   
   

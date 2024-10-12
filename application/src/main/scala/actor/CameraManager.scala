@@ -6,8 +6,8 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.stream.Materializer
 import akka.util.ByteString
-import message.{CameraOutputStreamSource, Config, ConfigServiceSuccess, GetSourceRef, Input, InputServiceFailure, InputServiceMsg, InputServiceSuccess, Message, OutputServiceMsg}
-import utils.{ConnectionController, Info, InputServiceErrors, StandardChildProcessCommands, StreamController}
+import message.{CameraOutputStreamSource, ChildStatus, Config, ConfigServiceSuccess, GetChildStatus, GetSourceRef, Input, InputServiceFailure, InputServiceMsg, InputServiceSuccess, Message, OutputServiceMsg}
+import utils.{ActorTypes, ChildStatuses, ConnectionController, Info, InputServiceErrors, StandardChildProcessCommands, StreamController}
 
 import java.io.{OutputStreamWriter, PrintWriter}
 import scala.sys.process.*
@@ -27,22 +27,22 @@ object CameraManager:
                     childOutputStream: StreamController = StreamController(),
                     socket: ConnectionController): CameraManager = new CameraManager(info, childStdin, childOutputStream, socket)
 
-private class CameraManager(info:Info, childStdin:Option[PrintWriter], childOutputStream: StreamController, socket:ConnectionController) extends ReachableActor(info):
+private class CameraManager(info:Info, childStdin:Option[PrintWriter], childOutputStream: StreamController, socket:ConnectionController) extends ReachableActor:
 
-  override def create(): Behavior =
+  def create(): Behavior =
     Behaviors.setup { context =>
       context.system.receptionist.tell(Receptionist.register(ServiceKey[InputServiceMsg]("inputs"), context.self))
       implicit val ctx: ActorContext[Message] = context
       implicit val mat: Materializer = Materializer(ctx.system)
-      CameraManager(setActorInfo(context), childStdin, childOutputStream, socket).behavior
+      CameraManager(setActorInfo(Info()), childStdin, childOutputStream, socket).behavior
     }
 
-  override def setActorInfo(ctx: Context): Info =
-    super.setActorInfo(ctx).setActorType("CameraManager")
+  override def setActorInfo(info:Info)(implicit ctx: Context): Info =
+    super.setActorInfo(info).setActorType(ActorTypes.CameraManager)
      
-  override def behavior(implicit materializer: Materializer, ctx:ActorContext[Message]): Behavior =
+  def behavior(implicit materializer: Materializer, ctx:ActorContext[Message]): Behavior =
     Behaviors.setup { ctx =>
-      Behaviors.receiveMessagePartial(getReachableBehavior.orElse(getManagingBehavior))
+      Behaviors.receiveMessagePartial(getReachableBehavior(info).orElse(getManagingBehavior))
     }
 
   private def launchNewChildProcess(command: Queue[String])(implicit materializer: Materializer): (PrintWriter, ConnectionController) =
@@ -92,3 +92,13 @@ private class CameraManager(info:Info, childStdin:Option[PrintWriter], childOutp
           replyTo ! CameraOutputStreamSource(info, source)
         case None => replyTo ! InputServiceFailure(InputServiceErrors.MissingChild)
       CameraManager(info, childStdin, childOutputStream, socket).behavior
+
+    case GetChildStatus(replyTo) =>
+      (childOutputStream.getSourceRef, childStdin) match
+        case (Some(stream), Some(printWriter)) =>
+          replyTo ! ChildStatus(info, ChildStatuses.Running)
+        case _ => 
+          replyTo ! ChildStatus(info, ChildStatuses.Idle)
+      CameraManager(info, childStdin, childOutputStream, socket).behavior    
+      
+          

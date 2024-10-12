@@ -1,10 +1,9 @@
 package message
 
-import akka.actor.typed.receptionist.Receptionist
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.ActorRef
 import akka.stream.SourceRef
 import akka.util.ByteString
-import utils.{Info, InputServiceErrors}
+import utils.{ChildStatuses, Info, InputServiceErrors}
 
 import scala.collection.immutable.Queue
 
@@ -22,15 +21,17 @@ case class InputServiceSuccess(author: Info) extends InputServiceMsg
 case class InputServiceFailure(cause: InputServiceErrors) extends InputServiceMsg
 case class GetSourceRef(replyTo:ActorRef[Message]) extends InputServiceMsg
 case class CameraOutputStreamSource(info:Info, sourceRef: SourceRef[ByteString]) extends InputServiceMsg
+case class GetChildStatus(replyTo:ActorRef[Message]) extends InputServiceMsg
+case class ChildStatus(info:Info, childStatus: ChildStatuses) extends InputServiceMsg
 
 trait OutputServiceMsg extends Message
 case class Output(s:String) extends OutputServiceMsg
 
 trait SupervisorServiceMsg extends Message
-case class InputsListing(listing: Set[ActorRef[InputServiceMsg]]) extends SupervisorServiceMsg
+case class InputsListing(listing: Set[ActorRef[Message]]) extends SupervisorServiceMsg
 case class GetInputs() extends SupervisorServiceMsg
 
-case class OutputListing(listing: Set[ActorRef[OutputServiceMsg]]) extends SupervisorServiceMsg
+case class OutputListing(listing: Set[ActorRef[Message]]) extends SupervisorServiceMsg
 case class GetOutputs() extends SupervisorServiceMsg
 
 
