@@ -122,13 +122,13 @@ class TestBehavior extends AnyFlatSpec:
     val expectedCamera_B_info = Info().setSelfRef(camera_B).setActorType(ActorTypes.CameraManager)
     val supervisor = testKit.spawn(Supervisor().create())
     Thread.sleep(5000)
-    clientsProbe.expectMessage(FiniteDuration(20, TimeUnit.SECONDS), CameraMap(supervisor, Map((expectedCamera_A_info -> Idle), (expectedCamera_B_info -> Idle))))
-    clientsProbe.expectMessage(FiniteDuration(20, TimeUnit.SECONDS), CameraMap(supervisor, Map((expectedCamera_A_info -> Idle), (expectedCamera_B_info -> Idle))))
+    clientsProbe.expectMessage(FiniteDuration(20, TimeUnit.SECONDS), CameraMap(supervisor, Map(expectedCamera_A_info -> Idle, expectedCamera_B_info -> Idle)))
+    clientsProbe.expectMessage(FiniteDuration(20, TimeUnit.SECONDS), CameraMap(supervisor, Map(expectedCamera_A_info -> Idle, expectedCamera_B_info -> Idle)))
     val powershellCommand: String = if (System.getProperty("os.name").toLowerCase().contains("win")) "powershell" else "pwsh"
     val configCommand = Queue(powershellCommand + " -ExecutionPolicy Bypass -File ../application/src/test/powershell/testCameraManagerScript.ps1 ", "configArg")
     camera_A ! Config(clientsProbe.ref, configCommand)
     clientsProbe.expectMessage(ConfigServiceSuccess(expectedCamera_A_info))
-    clientsProbe.expectMessage(FiniteDuration(20, TimeUnit.SECONDS), CameraMap(supervisor, Map((expectedCamera_A_info -> Running), (expectedCamera_B_info -> Idle))))
-    clientsProbe.expectMessage(FiniteDuration(20, TimeUnit.SECONDS), CameraMap(supervisor, Map((expectedCamera_A_info -> Running), (expectedCamera_B_info -> Idle))))
+    clientsProbe.expectMessage(FiniteDuration(20, TimeUnit.SECONDS), CameraMap(supervisor, Map(expectedCamera_A_info -> Running, expectedCamera_B_info -> Idle)))
+    clientsProbe.expectMessage(FiniteDuration(20, TimeUnit.SECONDS), CameraMap(supervisor, Map(expectedCamera_A_info -> Running, expectedCamera_B_info -> Idle)))
     camera_A ! Input(clientsProbe.ref, StandardChildProcessCommands.Kill.command)
 
