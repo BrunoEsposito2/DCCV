@@ -5,8 +5,8 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.stream.Materializer
-import akka.util.ByteString
-import message.{CameraOutputStreamSource, ChildStatus, Config, ConfigServiceSuccess, GetChildStatus, GetSourceRef, Input, InputServiceFailure, InputServiceMsg, InputServiceSuccess, Message, OutputServiceMsg}
+import message.{ChildStatus, Config, ConfigServiceSuccess, GetChildStatus, Input, InputServiceFailure, InputServiceSuccess, Message, OutputServiceMsg, Subscribe, SubscribeServiceFailure, SubscribeServiceSuccess, Unsubscribe}
+import utils.InputServiceErrors.MissingChild
 import utils.{ActorTypes, ChildStatuses, ConnectionController, Info, InputServiceErrors, StandardChildProcessCommands, StreamController}
 
 import java.io.{OutputStreamWriter, PrintWriter}
@@ -31,7 +31,7 @@ private class CameraManager(info:Info, childStdin:Option[PrintWriter], childOutp
 
   def create(): Behavior =
     Behaviors.setup { context =>
-      context.system.receptionist.tell(Receptionist.register(ServiceKey[InputServiceMsg]("inputs"), context.self))
+      context.system.receptionist.tell(Receptionist.register(ServiceKey[Message]("inputs"), context.self))
       implicit val ctx: ActorContext[Message] = context
       implicit val mat: Materializer = Materializer(ctx.system)
       CameraManager(setActorInfo(Info()), childStdin, childOutputStream, socket).behavior
@@ -61,8 +61,8 @@ private class CameraManager(info:Info, childStdin:Option[PrintWriter], childOutp
       val newSource = childOutputStream.closeSource()
       try
         val (newStdin, newConnection) = launchNewChildProcess(args)
-        val ns = newSource.InitializeSource(newConnection.getClientInput.get)
-        replyTo ! ConfigServiceSuccess(info, ns.getSourceRef.get)
+        val ns = newSource.InitializeSource(newConnection.getClientInput.get, ctx.self)
+        replyTo ! ConfigServiceSuccess(info)
         CameraManager(info, Option(newStdin), ns, newConnection).behavior
       catch
         case e: SocketTimeoutException =>
@@ -70,32 +70,36 @@ private class CameraManager(info:Info, childStdin:Option[PrintWriter], childOutp
           CameraManager(info, childStdin, childOutputStream, socket).behavior
 
     case Input(replyTo, arg) =>
-      (childOutputStream.getSourceRef, childStdin, arg) match
-        case (None, _, _) =>
+      (childOutputStream.isStreamRunning, childStdin, arg) match
+        case (false, _, _) =>
           replyTo ! InputServiceFailure(InputServiceErrors.MissingChild)
           CameraManager(info, childStdin, childOutputStream, socket).behavior
-        case (Some(ref), None, _) =>
+        case (true, None, _) =>
           replyTo ! InputServiceFailure(InputServiceErrors.MissingStdin)
           CameraManager(info, childStdin, childOutputStream, socket).behavior
-        case (Some(ref), Some(inputStream), StandardChildProcessCommands.Kill.command) =>
+        case (true, Some(inputStream), StandardChildProcessCommands.Kill.command) =>
           inputStream.println(arg)
           replyTo ! InputServiceSuccess(info)
           CameraManager(info, Option.empty, childOutputStream.closeSource(), socket.closeConnection()).behavior
-        case (Some(ref), Some(inputStream), _) =>
+        case (true, Some(inputStream), _) =>
           inputStream.println(arg)
           replyTo ! InputServiceSuccess(info)
           CameraManager(info, childStdin, childOutputStream, socket).behavior
-
-    case GetSourceRef(replyTo) =>
-      childOutputStream.getSourceRef match
-        case Some(source) =>
-          replyTo ! CameraOutputStreamSource(info, source)
-        case None => replyTo ! InputServiceFailure(InputServiceErrors.MissingChild)
-      CameraManager(info, childStdin, childOutputStream, socket).behavior
-
+      
+    case Subscribe(replyTo, sinkRef) =>
+      if childOutputStream.isStreamRunning then
+        replyTo ! SubscribeServiceSuccess(info)
+        CameraManager(info, childStdin, childOutputStream.addSink(replyTo, sinkRef), socket).behavior
+      else
+        replyTo ! SubscribeServiceFailure(info, MissingChild)
+        CameraManager(info, childStdin, childOutputStream, socket).behavior
+        
+    case Unsubscribe(replyTo) =>
+      CameraManager(info, childStdin, childOutputStream.removeSink(replyTo), socket).behavior
+      
     case GetChildStatus(replyTo) =>
-      (childOutputStream.getSourceRef, childStdin) match
-        case (Some(stream), Some(printWriter)) =>
+      (childOutputStream.isStreamRunning, childStdin) match
+        case (true, Some(printWriter)) =>
           replyTo ! ChildStatus(info, ChildStatuses.Running)
         case _ => 
           replyTo ! ChildStatus(info, ChildStatuses.Idle)
