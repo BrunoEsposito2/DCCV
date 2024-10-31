@@ -1,25 +1,26 @@
 package utils
 
+import akka.actor.typed.ActorRef
 import akka.NotUsed
-import akka.stream.javadsl.StreamRefs
-import akka.stream.{KillSwitch, KillSwitches, Materializer, SourceRef}
-import akka.stream.scaladsl.{BroadcastHub, Keep, Sink, Source}
+import akka.stream.{KillSwitch, KillSwitches, Materializer, SinkRef}
+import akka.stream.scaladsl.{BroadcastHub, Keep, Source}
 import akka.util.ByteString
+import message.{Message, SwitchToCamera}
 
 import java.io.InputStream
 
 object StreamController:
   def apply(): StreamController = new StreamController()
-  private def apply(source: Option[Source[ByteString, NotUsed]], ref: Option[SourceRef[ByteString]], killSwitch: Option[KillSwitch]): StreamController =
-    new StreamController(source, ref, killSwitch)
+  private def apply(source: Option[Source[ByteString, NotUsed]], killSwitch: Option[KillSwitch], broadcastMap: Map[ActorRef[Message], KillSwitch]): StreamController =
+    new StreamController(source, killSwitch, broadcastMap)
 
 class StreamController(private val source: Option[Source[ByteString, NotUsed]] = Option.empty,
-                       private val ref: Option[SourceRef[ByteString]] = Option.empty,
-                       private val killSwitch: Option[KillSwitch] = Option.empty):
+                       private val killSwitch: Option[KillSwitch] = Option.empty,
+                       private val broadcastMap:Map[ActorRef[Message], KillSwitch] = Map()):
 
-  def InitializeSource(origin: InputStream)(implicit mat:Materializer): StreamController =
+  def InitializeSource(origin: InputStream, cameraRef: ActorRef[Message])(implicit mat:Materializer): StreamController =
     killSwitch match
-      case Some(stream) => closeSource().InitializeSource(origin)
+      case Some(stream) => closeSource().InitializeSource(origin, cameraRef)
       case None =>
         val source = Source.fromIterator(() => new Iterator[ByteString] {
           val buffer = new Array[Byte](1024)
@@ -29,19 +30,38 @@ class StreamController(private val source: Option[Source[ByteString, NotUsed]] =
             if (bytesRead == -1) ByteString.empty else ByteString(buffer.take(bytesRead))
           }
         }).takeWhile(_.nonEmpty)
-        val (switch: KillSwitch, broadcastedSource: Source[ByteString, NotUsed]) = source.viaMat(KillSwitches.single)(Keep.right)
+        val (switch:KillSwitch, broadcastedSource: Source[ByteString, NotUsed]) = source.viaMat(KillSwitches.single)(Keep.right)
           .toMat(BroadcastHub.sink(bufferSize = 1))(Keep.both).run()
+        
+        broadcastMap.keySet.foreach(ref => ref ! SwitchToCamera(cameraRef))
 
-        val sourceRef = broadcastedSource.toMat(StreamRefs.sourceRef())(Keep.right).run()
-        StreamController(Option(broadcastedSource), Option(sourceRef), Option(switch))
+        StreamController(Option(broadcastedSource), Option(switch), Map())
 
   def closeSource(): StreamController =
     if(killSwitch.nonEmpty)
       killSwitch.get.shutdown()
-    StreamController(Option.empty, Option.empty, Option.empty)
+    StreamController(Option.empty, Option.empty, broadcastMap)
 
-  def getSourceRef: Option[SourceRef[ByteString]] =
-    this.ref
+  def addSink(actorRef:ActorRef[Message], sinkRef: SinkRef[ByteString])(implicit materializer:Materializer): StreamController =
+    source match
+      case Some(stream) =>
+        broadcastMap.getOrElse(actorRef, None) match
+          case None =>
+          case k: KillSwitch => k.shutdown()
+        val newSwitch: KillSwitch = stream.viaMat(KillSwitches.single)(Keep.right).toMat(sinkRef.sink())(Keep.left).run()
+        StreamController(source, killSwitch, broadcastMap + (actorRef -> newSwitch))
+      case None =>
+        StreamController(source, killSwitch, broadcastMap)
+
+  def removeSink(actorRef:ActorRef[Message])(implicit materializer:Materializer): StreamController =
+    broadcastMap.getOrElse(actorRef, None) match
+      case None => StreamController(source, killSwitch, broadcastMap)
+      case k: KillSwitch =>
+        if(isStreamRunning) k.shutdown()
+        StreamController(source, killSwitch, broadcastMap - actorRef)
+
+  def isStreamRunning: Boolean =
+    this.source.isDefined
 
 
 
