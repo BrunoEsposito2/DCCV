@@ -6,7 +6,10 @@ import org.scalatest.flatspec.AnyFlatSpec
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.stream.Materializer
-import message.{CameraOutputStreamSource, ChildStatus, Config, ConfigServiceSuccess, GetChildStatus, GetSourceRef, Input, InputServiceFailure, InputServiceSuccess, Message, Output, OutputServiceMsg, Ping, PingServiceMsg, Pong}
+import akka.stream.javadsl.StreamRefs
+import akka.stream.scaladsl.Sink
+import akka.util.ByteString
+import message.{ChildStatus, Config, ConfigServiceSuccess, GetChildStatus, Input, InputServiceFailure, InputServiceSuccess, Message, Output, Ping, PingServiceMsg, Pong, Subscribe, SubscribeServiceFailure, SubscribeServiceSuccess, SwitchToCamera}
 import utils.ChildStatuses.{Idle, Running}
 import utils.{ActorTypes, ChildStatuses, Info, InputServiceErrors, StandardChildProcessCommands}
 
@@ -49,12 +52,18 @@ class TestBehavior extends AnyFlatSpec:
     val pingProbe = testKit.createTestProbe[PingServiceMsg]()
     val forwarder: ActorRef[Message] = testKit.spawn(
       Behaviors.setup{ ctx =>
+        val sink =  Sink.foreach[ByteString](bs => outputProbe ! Output(bs.utf8String.strip()))
         Behaviors.receiveMessage {
-          case CameraOutputStreamSource(info, sourceRef) =>
-            implicit val mat:Materializer = Materializer(ctx.system)
-            sourceRef.source.runForeach(bytes => {
-              outputProbe ! Output(bytes.utf8String.strip())
-            })
+          case SwitchToCamera(cameraRef) =>
+            cameraRef ! Subscribe(ctx.self, sink.runWith(StreamRefs.sinkRef())(Materializer(ctx.system)))
+            Behaviors.same
+
+          case SubscribeServiceSuccess(info) =>
+            outputProbe ! SubscribeServiceSuccess(info)
+            Behaviors.same
+
+          case SubscribeServiceFailure(info, cause) =>
+            outputProbe ! SubscribeServiceFailure(info, cause)
             Behaviors.same
         }
       }
@@ -63,9 +72,7 @@ class TestBehavior extends AnyFlatSpec:
     def sendSuccessfullConfig(arg: String): Unit =
       cameraManager ! Config(inputProbe.ref, Queue(powershellCommand + " -ExecutionPolicy Bypass -File src/test/powershell/testCameraManagerScript.ps1 ", arg))
       inputProbe.expectMessageType[ConfigServiceSuccess]
-      cameraManager ! GetSourceRef(forwarder)
       Thread.sleep(3000)
-      outputProbe.expectMessage(FiniteDuration(10, duration.SECONDS), Output(arg))
 
     def sendSuccessfullInput(input: String): Unit =
       cameraManager ! Input(inputProbe.ref, input)
@@ -79,14 +86,22 @@ class TestBehavior extends AnyFlatSpec:
     outputProbe.expectNoMessage(FiniteDuration(5, duration.SECONDS))
     requestChildStatus(Idle)
     sendSuccessfullConfig("firstRunArg")
+    forwarder ! SwitchToCamera(cameraManager)
+    outputProbe.expectMessage(SubscribeServiceSuccess(expectedInfo))
+    outputProbe.expectMessage(FiniteDuration(10, duration.SECONDS), Output("firstRunArg"))
+
     requestChildStatus(Running)
     sendSuccessfullInput("runtimeArg1")
     sendSuccessfullConfig("secondRunArg")
+    outputProbe.expectMessage(SubscribeServiceSuccess(expectedInfo))
+    outputProbe.expectMessage(FiniteDuration(10, duration.SECONDS), Output("secondRunArg"))
     sendSuccessfullInput("runtimeArg2")
     sendSuccessfullInput(StandardChildProcessCommands.Kill.command)
     cameraManager ! Input(inputProbe.ref, "anything")
-    requestChildStatus(Idle)
     inputProbe.expectMessage(FiniteDuration(10, duration.SECONDS), InputServiceFailure(InputServiceErrors.MissingChild))
+    requestChildStatus(Idle)
+    forwarder ! SwitchToCamera(cameraManager)
+    outputProbe.expectMessage(SubscribeServiceFailure(expectedInfo, InputServiceErrors.MissingChild))
     cameraManager ! Ping(pingProbe.ref)
     pingProbe.expectMessage(Pong(Info(cameraManager.ref, Set(), ActorTypes.CameraManager)))
 
