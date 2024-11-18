@@ -101,8 +101,12 @@ tasks.test {
             var timeout = 30000 // 30 secondi
 
             try {
-                process = ProcessBuilder("sh -c chmod +x ${runScript.absolutePath} && ${runScript.absolutePath}")
-                    .redirectErrorStream(true)  // Unisce stderr con stdout
+                exec {
+                    commandLine("chmod", "+x", runScript.absolutePath)
+                }
+
+                process = ProcessBuilder("sh", runScript.absolutePath)
+                    .redirectErrorStream(true)
                     .start()
 
                 var reader = BufferedReader(InputStreamReader(process.inputStream))
