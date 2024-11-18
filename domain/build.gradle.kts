@@ -131,6 +131,7 @@ tasks.test {
                         }
                         break
                     }
+                    line = reader.readLine()
                 }
 
                 if (!found) {
