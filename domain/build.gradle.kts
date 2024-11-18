@@ -1,4 +1,6 @@
 import org.gradle.internal.os.OperatingSystem
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.util.regex.Pattern
 
 /*
@@ -92,6 +94,7 @@ tasks.test {
             .walk()
             .filter { it.isFile && it.name == "run.sh" }
             .elementAt(0)
+
         if (runScript.exists()) {
             exec {
                 commandLine("sh", "-c", """
@@ -100,6 +103,54 @@ tasks.test {
                 """)
                 standardOutput = System.out
                 errorOutput = System.err
+            }
+
+            var process: Process? = null
+            var startTime = System.currentTimeMillis()
+            var timeout = 30000 // 30 secondi
+
+            try {
+                process = ProcessBuilder("sh -c chmod +x ${runScript.absolutePath} && ${runScript.absolutePath}")
+                    .redirectErrorStream(true)  // Unisce stderr con stdout
+                    .start()
+
+                var reader = BufferedReader(InputStreamReader(process.inputStream))
+                var line = reader.readLine()
+                var found = false
+
+                while (line != null && !found) {
+                    if (System.currentTimeMillis() - startTime > timeout) {
+                        throw GradleException("Timeout waiting for server to start")
+                    }
+
+                    if (line.contains("Server started successfully")) {
+                        found = true
+                        Thread.sleep(2000)
+
+                        val pid = process.pid()
+                        exec {
+                            commandLine("kill", "-SIGINT", "${pid}")
+                            standardOutput = System.out
+                            errorOutput = System.err
+                        }
+                        break
+                    }
+                }
+
+                if (!found) {
+                    throw GradleException("Server never started successfully")
+                }
+
+            } catch (e: Exception) {
+                throw GradleException("Error running program: ${e.message}", e)
+            } finally {
+                if (process != null) {
+                    process.destroy()
+                    process.waitFor(5, TimeUnit.SECONDS)
+                    if (process.isAlive()) {
+                        process.destroyForcibly()
+                    }
+                }
             }
         } else {
             println("Script 'run.sh' not found.")
