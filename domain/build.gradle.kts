@@ -96,15 +96,6 @@ tasks.test {
             .elementAt(0)
 
         if (runScript.exists()) {
-            exec {
-                commandLine("sh", "-c", """
-                    chmod +x ${runScript.absolutePath} &&
-                    ${runScript.absolutePath}
-                """)
-                standardOutput = System.out
-                errorOutput = System.err
-            }
-
             var process: Process? = null
             var startTime = System.currentTimeMillis()
             var timeout = 30000 // 30 secondi
