@@ -106,15 +106,16 @@ tasks.test {
                 }
 
                 process = ProcessBuilder("sh", runScript.absolutePath)
-                    .redirectOutput(ProcessBuilder.Redirect.PIPE)
                     .redirectErrorStream(true)
                     .start()
 
-                var reader = BufferedReader(InputStreamReader(process.inputStream))
+                val reader = BufferedReader(InputStreamReader(process.inputStream))
                 var line = reader.readLine()
                 var found = false
 
                 while (line != null && !found) {
+                    println("Read line: $line")
+
                     if (System.currentTimeMillis() - startTime > timeout) {
                         throw GradleException("Timeout waiting for server to start")
                     }
