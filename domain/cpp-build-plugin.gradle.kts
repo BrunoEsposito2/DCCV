@@ -10,8 +10,6 @@ tasks.register("buildCMake") {
                         cmake --build . &&
                         cmake --install . --prefix=${project.buildDir}/install
                        """)
-            /* mkdir -p build &&
-               cd build &&*/
             standardOutput = System.out
             errorOutput = System.err
         }

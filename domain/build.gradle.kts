@@ -91,8 +91,7 @@ tasks.test {
         val runScript = project.projectDir
             .walk()
             .filter { it.isFile && it.name == "run.sh" }
-            // prende il secondo script "run.sh" (nella directory di release invece che nella directory principale del progetto)
-            .elementAt(1)
+            .elementAt(0)
         if (runScript.exists()) {
             exec {
                 commandLine("sh", "-c", """

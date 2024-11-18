@@ -1,4 +1,4 @@
 #!/bin/bash
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export LD_LIBRARY_PATH="$DIR/libs:$LD_LIBRARY_PATH"
-"$DIR/bin/domain"
+DIR="$( pwd )"
+export LD_LIBRARY_PATH="$DIR/build/release/domain/libs:$LD_LIBRARY_PATH"
+"$DIR/build/release/domain/bin/domain" -v="$DIR/video/output.avi"
