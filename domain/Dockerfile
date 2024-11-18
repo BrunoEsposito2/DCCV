@@ -33,6 +33,7 @@ EXPOSE 5555
 
 VOLUME [ "/workspace/" ]
 
-RUN ffmpeg -i video/video.mp4 -vcodec mjpeg -q:v 2 video/output.avi
+# run this command in case you have mp4 video files
+# RUN ffmpeg -i video/video.mp4 -vcodec mjpeg -q:v 2 video/output.avi
 
 CMD ["gradle", "build"]
