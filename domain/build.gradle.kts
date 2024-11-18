@@ -106,6 +106,7 @@ tasks.test {
                 }
 
                 process = ProcessBuilder("sh", runScript.absolutePath)
+                    .redirectOutput(ProcessBuilder.Redirect.PIPE)
                     .redirectErrorStream(true)
                     .start()
 
