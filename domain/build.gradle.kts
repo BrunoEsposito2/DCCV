@@ -114,7 +114,7 @@ tasks.test {
                 var found = false
 
                 while (line != null && !found) {
-                    println("Read line: $line")
+                    println(line)
 
                     if (System.currentTimeMillis() - startTime > timeout) {
                         throw GradleException("Timeout waiting for server to start")
