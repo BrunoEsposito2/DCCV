@@ -105,7 +105,7 @@ tasks.test {
                     commandLine("chmod", "+x", runScript.absolutePath)
                 }
 
-                process = ProcessBuilder("sh", runScript.absolutePath)
+                process = ProcessBuilder("bash", runScript.absolutePath)
                     .redirectErrorStream(true)
                     .start()
 
