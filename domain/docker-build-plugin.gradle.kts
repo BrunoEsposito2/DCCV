@@ -15,7 +15,7 @@ tasks.register("dockerBuild") {
                     "cmd", "/c",
                     "docker run -p 5555:5555 --name ubuntu-opencv_build-container" +
                             " --rm ubuntu-opencv_build_streaming /bin/bash " +
-                            "-c \"gradle build\""
+                            "-c \"GRADLE_USER_HOME=/tmp/.gradle ./gradlew build\""
                 )
                 standardOutput = System.out
                 errorOutput = System.err

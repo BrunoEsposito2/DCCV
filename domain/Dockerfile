@@ -13,13 +13,6 @@ RUN apt-get update && apt-get install -y \
     libwebsocketpp-dev \
     ffmpeg
 
-# Install Gradle
-RUN wget https://downloads.gradle.org/distributions/gradle-8.10.2-bin.zip && \
-    mkdir -p /opt/gradle && \
-    unzip -d /opt/gradle gradle-8.10.2-bin.zip && \
-    ln -s /opt/gradle/gradle-8.10.2/bin/gradle /usr/bin/gradle && \
-    rm gradle-8.10.2-bin.zip
-
 # Add Gradle to PATH
 ENV PATH=$PATH:/opt/gradle/gradle-8.10.2/bin
 
