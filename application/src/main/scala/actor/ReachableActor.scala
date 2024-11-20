@@ -1,19 +1,17 @@
 package actor
 
 import akka.actor.typed.Behavior
-import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.stream.Materializer
 import message.{Message, Ping, Pong}
 import utils.Info
 
-object ReachableActor:
-  def apply(info:Info): ReachableActor = new ReachableActor(info)
+trait ReachableActor:
 
-private class ReachableActor(val info:Info):
-
-  def getReachableBehavior: PartialFunction[Message, Behavior[Message]] =
-     case Ping(replyTo) => replyTo ! Pong(info)
-      Behaviors.same
-      
-  def behavior(): Behavior[Message] = Behaviors.setup { context =>
-    Behaviors.receiveMessagePartial(getReachableBehavior)
-  }
+  protected def setActorInfo(info: Info)(implicit ctx: ActorContext[Message]): Info =
+    if (info.self == null) info.setSelfRef(ctx.self)
+    else info
+  
+  protected def getReachableBehavior(info: Info)(implicit mat: Materializer, context:ActorContext[Message], behavior:Behavior[Message] = Behaviors.same): PartialFunction[Message, Behavior[Message]] =
+    case Ping(replyTo) => replyTo ! Pong(info)
+      behavior

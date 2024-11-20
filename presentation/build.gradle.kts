@@ -28,6 +28,7 @@ dependencies {
 
     // https://mvnrepository.com/artifact/com.typesafe.akka/akka-actor-typed
     implementation("com.typesafe.akka:akka-actor-typed_3:2.8.6")
+    implementation("com.typesafe.akka:akka-stream-typed_3:2.8.6")
 
     // Use Scalatest for testing our library
 
