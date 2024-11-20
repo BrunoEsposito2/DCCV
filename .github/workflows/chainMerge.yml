@@ -119,8 +119,7 @@ jobs:
         git checkout $next_branch
 
         # Merge the current branch into it again to ensure it's up to date
-        git merge --no-commit --no-ff $current_branch
-        git commit -m "chore: branch '$current_branch' into $next_branch after successful tests"
-        
+        git merge --no-verify --no-ff $current_branch
+
         # Push the changes to the next branch
         git push origin $next_branch
