@@ -72,6 +72,13 @@ jobs:
         distribution: 'corretto'
         java-version: '17'
 
+    - name: Setup Gradle
+      run: |
+        mkdir -p ~/.gradle
+        chmod -R 777 ~/.gradle
+        mkdir -p .gradle
+        chmod -R 777 .gradle
+
     - name: Set execute permissions for Gradle wrapper
       run: chmod +x ./gradlew
 
