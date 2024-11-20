@@ -106,7 +106,7 @@ jobs:
       if: ${{ steps.determine-next.outputs.next_branch != '' }} && ${{ github.ref != 'refs/heads/domain' }}
       run: |
         subproject="${GITHUB_REF#refs/heads/}"
-        ./gradlew ${subproject}:test
+        gradle ${subproject}:test
 
     - name: Push changes to next branch if tests pass
       if: ${{ success() && steps.determine-next.outputs.next_branch != '' }}
