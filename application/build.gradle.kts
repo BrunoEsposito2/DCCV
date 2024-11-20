@@ -22,6 +22,8 @@ dependencies {
     // https://mvnrepository.com/artifact/org.scala-lang/scala3-library
     implementation("org.scala-lang:scala3-library_3:3.3.3")
 
+    implementation("io.reactivex:rxscala_2.13:0.27.0")
+
     // This dependency is used by the application.
     implementation("com.google.guava:guava:33.2.1-jre")
 
@@ -40,6 +42,8 @@ dependencies {
     testImplementation("com.typesafe.akka:akka-actor-testkit-typed_3:2.8.6")
     // https://mvnrepository.com/artifact/com.typesafe.akka/akka-slf4j
     implementation("com.typesafe.akka:akka-slf4j_3:2.8.6")
+
+    implementation("com.typesafe.akka:akka-stream-typed_3:2.8.6")
 
 }
 
