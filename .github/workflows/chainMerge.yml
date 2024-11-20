@@ -66,7 +66,7 @@ jobs:
         echo "::set-output name=next_branch::$next_branch"
 
     - name: Set up JDK 17
-      if: ${{ steps.determine-next.outputs.next_branch != '' }}
+      if: steps.determine-next.outputs.next_branch != ''
       uses: actions/setup-java@v3
       with:
         distribution: 'corretto'
@@ -94,7 +94,7 @@ jobs:
         EOF
 
     - name: Run Domain Branch Gradle Test
-      if: ${{ github.ref == 'refs/heads/domain' }}
+      if: github.ref == 'refs/heads/domain'
       run: |
         docker build -t opencv-build-image ./domain
         docker run -v ${{ github.workspace }}:/workspace \
@@ -103,13 +103,13 @@ jobs:
            /bin/bash -c "gradle test"
 
     - name: Run Gradle tests
-      if: ${{ steps.determine-next.outputs.next_branch != '' }} && ${{ github.ref != 'refs/heads/domain' }}
+      if: steps.determine-next.outputs.next_branch != '' }} && ${{ github.ref != 'refs/heads/domain'
       run: |
         subproject="${GITHUB_REF#refs/heads/}"
-        gradle ${subproject}:test
+        ./gradlew ${subproject}:test
 
     - name: Push changes to next branch if tests pass
-      if: ${{ success() && steps.determine-next.outputs.next_branch != '' }}
+      if: success() && steps.determine-next.outputs.next_branch != ''
       run: |
         current_branch="${GITHUB_REF#refs/heads/}"
         next_branch="${{ steps.determine-next.outputs.next_branch }}"
