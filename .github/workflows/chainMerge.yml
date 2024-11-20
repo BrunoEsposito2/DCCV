@@ -103,7 +103,7 @@ jobs:
            /bin/bash -c "gradle test"
 
     - name: Run Gradle tests
-      if: steps.determine-next.outputs.next_branch != '' }} && ${{ github.ref != 'refs/heads/domain'
+      if: steps.determine-next.outputs.next_branch != '' && github.ref != 'refs/heads/domain'
       run: |
         subproject="${GITHUB_REF#refs/heads/}"
         ./gradlew ${subproject}:test
