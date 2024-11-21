@@ -6,8 +6,9 @@ import './App.css';
 const App = () => {
     const [currentCamera, setCurrentCamera] = useState('camera1');
     const [details, setDetails] = useState({
-        peopleCount: 5,
-        clothesColor: 'Red, Blue',
+        peopleCount: 0,
+        mode: 'Initializing...',
+        fps: 0
     });
 
     const cameras = [
@@ -18,10 +19,6 @@ const App = () => {
 
     const handleCameraClick = (cameraId) => {
         setCurrentCamera(cameraId);
-        setDetails({
-            peopleCount: Math.floor(Math.random() * 10),
-            clothesColor: 'Color ' + Math.floor(Math.random() * 5),
-        });
     };
 
     return (
@@ -37,7 +34,12 @@ const App = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="md:col-span-3">
-                    <VideoFeed cameraId={currentCamera} details={details} />
+                    <VideoFeed
+                        cameraId={currentCamera}
+                        details={details}
+                        setDetails={setDetails}
+                        wsEndpoint={`ws://localhost:5555/${currentCamera}`}
+                    />
                 </div>
                 <div className="md:col-span-1">
                     <CameraList
