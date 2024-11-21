@@ -11,6 +11,8 @@
 #include <chrono>
 #include <atomic>
 #include <filesystem>
+#include <random>
+#include <string>
 
 typedef websocketpp::server<websocketpp::config::asio> Server;
 using namespace cv;
@@ -97,18 +99,42 @@ public:
     }
 };
 
+string generateRandomId(int length) {
+    const string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    random_device rd;
+    mt19937 generator(rd());
+    uniform_int_distribution<> distribution(0, chars.size() - 1);
+
+    string randomId;
+    for (int i = 0; i < length; ++i) {
+        randomId += chars[distribution(generator)];
+    }
+    return randomId;
+}
+
 class VideoServer {
+    string cameraId;
 public:
-    VideoServer(int camera, string file) : running(false) {
+    VideoServer(int camera, string file, string id = "") : running(false) {
+        cameraId = id.empty() ? generateRandomId(10) : id;
+
         server.init_asio();
         server.set_access_channels(websocketpp::log::alevel::none);
         server.clear_access_channels(websocketpp::log::alevel::all);
+
+        server.set_validate_handler([this](connection_hdl hdl) -> bool {
+            auto con = server.get_con_from_hdl(hdl);
+            string resource = con->get_resource();
+            return resource == "/camera" + this->cameraId;
+        });
 
         server.set_open_handler(bind(&VideoServer::on_open, this, placeholders::_1));
         server.set_close_handler(bind(&VideoServer::on_close, this, placeholders::_1));
 
         videoThread = thread(&VideoServer::processVideo, this, camera, file);
     }
+
+    string getCameraId() const { return cameraId; }
 
     void run(uint16_t port) {
         server.listen(port);
@@ -182,10 +208,7 @@ private:
             vector<Rect> found = detector.detect(frame);
             t = getTickCount() - t;
 
-            ostringstream buf;
-            buf << "Mode: " << detector.modeName() << " ||| "
-                << "FPS: " << fixed << setprecision(1) << (getTickFrequency() / (double)t);
-            putText(frame, buf.str(), Point(10, 30), FONT_HERSHEY_PLAIN, 2.0, Scalar(0, 0, 255), 2, LINE_AA);
+            double fps = getTickFrequency() / (double)t;
 
             for (auto& r : found) {
                 detector.adjustRect(r);
@@ -198,10 +221,19 @@ private:
             vector<int> params = {IMWRITE_JPEG_QUALITY, 60};
             imencode(".jpg", resized, buffer, params);
 
+            ostringstream jsonStream;
+            jsonStream << "{";
+            jsonStream << "\"detectedCount\":" << found.size() << ",";
+            jsonStream << "\"mode\":\"" << detector.modeName() << "\",";
+            jsonStream << "\"fps\":" << fixed << setprecision(1) << fps;
+            jsonStream << "}";
+            string jsonMessage = jsonStream.str();
+
             lock_guard<mutex> lock(connectionsMutex);
             for (auto& hdl : connections) {
                 try {
-                    server.send(hdl, buffer.data(), buffer.size(), websocketpp::frame::opcode::binary);
+                    server.send(hdl, jsonMessage, websocketpp::frame::opcode::text);
+		            server.send(hdl, buffer.data(), buffer.size(), websocketpp::frame::opcode::binary);
                 } catch (const websocketpp::exception& e) {
                     cerr << "Send error: " << e.what() << endl;
                 }
@@ -225,7 +257,8 @@ int main(int argc, char** argv) {
         "{ help h   |   | print help message }"
         "{ camera c | 0 | capture video from camera (device index starting from 0) }"
         "{ video v  |   | use video as input }"
-        "{ port p   | 5555 | WebSocket server port }");
+        "{ port p   | 5555 | WebSocket server port }"
+        "{ id      |   | camera identifier for the stream endpoint }");
 
     parser.about("Face/Body detection with WebSocket streaming capability");
 
@@ -237,16 +270,18 @@ int main(int argc, char** argv) {
     int camera = parser.get<int>("camera");
     string file = parser.get<string>("video");
     int port = parser.get<int>("port");
+    string cameraId = parser.get<string>("id");
 
     if (!parser.check()) {
         parser.printErrors();
         return 1;
     }
 
-    VideoServer server(camera, file);
+    VideoServer server(camera, file, cameraId);
 
     try {
         cout << "Video server started on port " << port << endl;
+        cout << "Stream available at: /camera" << server.getCameraId() << endl;
         server.run(port);
     } catch (const exception& e) {
         cerr << "Error: " << e.what() << endl;
