@@ -13,7 +13,9 @@ tasks.register("dockerBuild") {
             exec {
                 commandLine(
                     "cmd", "/c",
-                    "docker run -p 5555:5555 --name ubuntu-opencv_build-container" +
+                    "docker run -v %cd%\\\\\\\\..:/workspace -v /workspace/.gradle" +
+                            " -v %cd%\\\\\\\\../.gradle:/tmp/.gradle" +
+                            " -p 5555:5555 --name ubuntu-opencv_build-container" +
                             " --rm ubuntu-opencv_build_streaming /bin/bash " +
                             "-c \"GRADLE_USER_HOME=/tmp/.gradle ./gradlew build\""
                 )
