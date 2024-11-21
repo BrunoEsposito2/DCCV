@@ -11,10 +11,12 @@ RUN apt-get update && apt-get install -y \
     libboost-all-dev \
     # Install the websocket library
     libwebsocketpp-dev \
+    openjdk-17-jdk \
     ffmpeg
 
-# Add Gradle to PATH
-ENV PATH=$PATH:/opt/gradle/gradle-8.10.2/bin
+# Imposta le variabili d'ambiente per Java
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH=$PATH:$JAVA_HOME/bin
 
 RUN mkdir /workspace
 
