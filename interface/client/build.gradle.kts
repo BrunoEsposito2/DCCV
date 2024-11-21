@@ -13,23 +13,21 @@ dependencies {
 
 // Configura il task per installare le dipendenze npm
 tasks.named<com.github.gradle.node.npm.task.NpmInstallTask>("npmInstall") {
-    workingDir.set(file("interface"))
+    inputs.file("package.json")
+    outputs.dir("node_modules")
 }
 
 // Task per costruire l'app React
 tasks.register<com.github.gradle.node.npm.task.NpmTask>("buildReact") {
     dependsOn(tasks.named("npmInstall"))
     npmCommand.set(listOf("run", "build"))
-    workingDir.set(file("interface"))
-    inputs.dir("interface")
-    outputs.dir("interface/build")
+    outputs.dir("build")
 }
 
 // Task per avviare il server di sviluppo React
 tasks.register<com.github.gradle.node.npm.task.NpmTask>("runReact") {
     dependsOn(tasks.named("buildReact"))
     npmCommand.set(listOf("start"))
-    workingDir.set(file("interface"))
-    inputs.dir("interface")
+    inputs.dir("build")
     outputs.upToDateWhen { false } // Assicurarsi che il task non sia considerato up-to-date e venga eseguito sempre
 }
