@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Users, Palette, Maximize2, Download, AlertCircle, Crop, Crosshair } from 'lucide-react';
-import * as Dialog from '@radix-ui/react-dialog';
+import { Camera, Users, Ratio, GalleryHorizontalEnd, Crop, Crosshair } from 'lucide-react';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 
-const VideoFeed = ({ cameraId = '1', details = { peopleCount: 0, clothesColor: 'None' } }) => {
+const VideoFeed = ({ cameraId, details, setDetails, wsEndpoint }) => {
     const canvasRef = useRef(null);
     const selectionRef = useRef(null);
     const markerRef = useRef(null);
-    const [isConnected, setIsConnected] = useState(true);
-    const [showDisconnectAlert, setShowDisconnectAlert] = useState(false);
+    const wsRef = useRef(null);
+
+    const [isConnected, setIsConnected] = useState(false);
     const [selectionMode, setSelectionMode] = useState('none'); // 'none', 'start', 'region'
     const [startPoint, setStartPoint] = useState(null);
     const [selectionStart, setSelectionStart] = useState(null);
@@ -16,21 +16,83 @@ const VideoFeed = ({ cameraId = '1', details = { peopleCount: 0, clothesColor: '
     const [selectedRegion, setSelectedRegion] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
 
+    // WebSocket Connection Logic
     useEffect(() => {
-        const canvas = canvasRef.current;
-        if (canvas) {
-            const ctx = canvas.getContext('2d');
-            canvas.width = 640;
-            canvas.height = 480;
-            ctx.fillStyle = '#2D3748';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#A0AEC0';
-            ctx.font = '20px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(`Camera Feed ${cameraId}`, canvas.width / 2, canvas.height / 2);
-        }
-    }, [cameraId]);
+        let reconnectTimer;
 
+        const connectWebSocket = () => {
+            try {
+                wsRef.current = new WebSocket(wsEndpoint);
+                wsRef.current.binaryType = 'arraybuffer';
+
+                wsRef.current.onopen = () => {
+                    console.log('Connected to video server');
+                    setIsConnected(true);
+                    if (reconnectTimer) clearTimeout(reconnectTimer);
+                };
+
+                wsRef.current.onclose = () => {
+                    console.log('Disconnected from video server');
+                    setIsConnected(false);
+                    reconnectTimer = setTimeout(connectWebSocket, 3000);
+                };
+
+                wsRef.current.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    setIsConnected(false);
+                };
+
+                wsRef.current.onmessage = (event) => {
+                    try {
+                        if (typeof event.data === 'string') {
+                            // Handle JSON data (metrics)
+                            const data = JSON.parse(event.data);
+                            setDetails({
+                                peopleCount: data.detectedCount,
+                                mode: data.mode,
+                                fps: data.fps
+                            });
+                        } else {
+                            // Handle binary data (video frame)
+                            const blob = new Blob([event.data], { type: 'image/jpeg' });
+                            const imageUrl = URL.createObjectURL(blob);
+                            const img = new Image();
+
+                            img.onload = () => {
+                                const canvas = canvasRef.current;
+                                if (canvas) {
+                                    const ctx = canvas.getContext('2d');
+                                    if (canvas.width !== img.width) {
+                                        canvas.width = img.width;
+                                        canvas.height = img.height;
+                                    }
+                                    ctx.drawImage(img, 0, 0);
+                                    URL.revokeObjectURL(imageUrl);
+                                }
+                            };
+                            img.src = imageUrl;
+                        }
+                    } catch (error) {
+                        console.error('Error processing message:', error);
+                    }
+                };
+
+            } catch (error) {
+                console.error('WebSocket connection error:', error);
+                setIsConnected(false);
+                reconnectTimer = setTimeout(connectWebSocket, 3000);
+            }
+        };
+
+        connectWebSocket();
+
+        return () => {
+            if (wsRef.current) wsRef.current.close();
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+        };
+    }, [wsEndpoint, setDetails]);
+
+    // Region Selection Handlers
     const handleCanvasClick = (e) => {
         if (selectionMode === 'start') {
             const rect = canvasRef.current.getBoundingClientRect();
@@ -45,14 +107,12 @@ const VideoFeed = ({ cameraId = '1', details = { peopleCount: 0, clothesColor: '
             setSelectionEnd({ x, y });
             setSelectionMode('region');
 
-            // Update marker position
             if (markerRef.current) {
                 markerRef.current.style.left = `${x}px`;
                 markerRef.current.style.top = `${y}px`;
                 markerRef.current.style.display = 'block';
             }
 
-            // Initialize selection box and start dragging
             if (selectionRef.current) {
                 selectionRef.current.style.left = `${x}px`;
                 selectionRef.current.style.top = `${y}px`;
@@ -61,7 +121,6 @@ const VideoFeed = ({ cameraId = '1', details = { peopleCount: 0, clothesColor: '
                 selectionRef.current.style.display = 'block';
             }
 
-            // Automatically start dragging
             setIsDragging(true);
         }
     };
@@ -72,12 +131,11 @@ const VideoFeed = ({ cameraId = '1', details = { peopleCount: 0, clothesColor: '
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
-            // Only start dragging if click is near the start point
             const startX = (startPoint.x * rect.width) / 100;
             const startY = (startPoint.y * rect.height) / 100;
             const distance = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
 
-            if (distance < 20) { // 20px threshold for starting drag
+            if (distance < 20) {
                 setIsDragging(true);
                 setSelectionEnd({ x, y });
             }
@@ -92,7 +150,6 @@ const VideoFeed = ({ cameraId = '1', details = { peopleCount: 0, clothesColor: '
         const y = Math.min(Math.max(0, e.clientY - rect.top), rect.height);
         setSelectionEnd({ x, y });
 
-        // Calculate dimensions based on start point and current position
         const startX = (startPoint.x * rect.width) / 100;
         const startY = (startPoint.y * rect.height) / 100;
         const width = Math.abs(x - startX);
@@ -100,7 +157,6 @@ const VideoFeed = ({ cameraId = '1', details = { peopleCount: 0, clothesColor: '
         const left = Math.min(startX, x);
         const top = Math.min(startY, y);
 
-        // Update selection box
         selectionRef.current.style.left = `${left}px`;
         selectionRef.current.style.top = `${top}px`;
         selectionRef.current.style.width = `${width}px`;
@@ -135,7 +191,6 @@ const VideoFeed = ({ cameraId = '1', details = { peopleCount: 0, clothesColor: '
                 }
             };
             setSelectedRegion(selectedRegion);
-            console.log('Selected region with start point:', selectedRegion);
             setSelectionMode('none');
         }
     };
@@ -197,50 +252,43 @@ const VideoFeed = ({ cameraId = '1', details = { peopleCount: 0, clothesColor: '
                                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                                 Live
                             </div>
-                        ) : (
-                            /* Rest of connection status UI */
-                            null
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </div>
 
             <div className="space-y-4">
                 <div className="relative group">
-                    <Dialog.Root>
-                        <div className="border rounded-lg overflow-hidden bg-gray-900 relative">
-                            <canvas
-                                ref={canvasRef}
-                                className={`w-full ${
-                                    selectionMode === 'start' ? 'cursor-crosshair' :
-                                        selectionMode === 'region' ? 'cursor-crosshair' :
-                                            'cursor-pointer'
-                                }`}
-                                style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
-                                onClick={handleCanvasClick}
-                                onMouseDown={handleMouseDown}
-                                onMouseMove={handleMouseMove}
-                                onMouseUp={handleMouseUp}
-                                onMouseLeave={handleMouseUp}
-                            />
-                            <div
-                                ref={markerRef}
-                                className="absolute w-4 h-4 -translate-x-1/2 -translate-y-1/2 hidden pointer-events-none"
-                                style={{
-                                    backgroundImage: `radial-gradient(circle, rgba(59, 130, 246, 0.5) 0%, rgba(59, 130, 246, 0.2) 50%, transparent 70%)`,
-                                    width: '20px',
-                                    height: '20px',
-                                    borderRadius: '50%'
-                                }}
-                            />
-                            <div
-                                ref={selectionRef}
-                                className="absolute border-2 border-blue-500 bg-blue-500/20 hidden pointer-events-none"
-                            />
-                        </div>
-
-                        {/* Rest of Dialog components */}
-                    </Dialog.Root>
+                    <div className="border rounded-lg overflow-hidden bg-gray-900 relative">
+                        <canvas
+                            ref={canvasRef}
+                            className={`w-full ${
+                                selectionMode === 'start' ? 'cursor-crosshair' :
+                                    selectionMode === 'region' ? 'cursor-crosshair' :
+                                        'cursor-pointer'
+                            }`}
+                            style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
+                            onClick={handleCanvasClick}
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            onMouseLeave={handleMouseUp}
+                        />
+                        <div
+                            ref={markerRef}
+                            className="absolute w-4 h-4 -translate-x-1/2 -translate-y-1/2 hidden pointer-events-none"
+                            style={{
+                                backgroundImage: `radial-gradient(circle, rgba(59, 130, 246, 0.5) 0%, rgba(59, 130, 246, 0.2) 50%, transparent 70%)`,
+                                width: '20px',
+                                height: '20px',
+                                borderRadius: '50%'
+                            }}
+                        />
+                        <div
+                            ref={selectionRef}
+                            className="absolute border-2 border-blue-500 bg-blue-500/20 hidden pointer-events-none"
+                        />
+                    </div>
                 </div>
 
                 {(startPoint || selectedRegion) && (
@@ -268,10 +316,10 @@ const VideoFeed = ({ cameraId = '1', details = { peopleCount: 0, clothesColor: '
                     </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                     <div className="bg-white p-6 rounded-lg shadow border hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-2 text-blue-600">
-                            <Users className="w-5 h-5" />
+                            <Users className="w-5 h-5"/>
                             <h3 className="font-semibold">People Count</h3>
                         </div>
                         <p className="text-3xl font-bold mt-2">{details.peopleCount}</p>
@@ -279,39 +327,24 @@ const VideoFeed = ({ cameraId = '1', details = { peopleCount: 0, clothesColor: '
                     </div>
 
                     <div className="bg-white p-6 rounded-lg shadow border hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-2 text-purple-600">
-                            <Palette className="w-5 h-5" />
-                            <h3 className="font-semibold">Detected Colors</h3>
+                        <div className="flex items-center gap-2 text-blue-600">
+                            <Ratio className="w-5 h-5"/>
+                            <h3 className="font-semibold">Mode</h3>
                         </div>
-                        <p className="text-3xl font-bold mt-2">{details.clothesColor}</p>
-                        <p className="text-sm text-gray-500 mt-1">Predominant colors</p>
+                        <p className="text-3xl font-bold mt-2">{details.mode}</p>
+                        <p className="text-sm text-gray-500 mt-1">Current tracking mode</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-lg shadow border hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-2 text-blue-600">
+                            <GalleryHorizontalEnd className="w-5 h-5"/>
+                            <h3 className="font-semibold">Frame per second</h3>
+                        </div>
+                        <p className="text-3xl font-bold mt-2">{details.fps}</p>
+                        <p className="text-sm text-gray-500 mt-1">Video stream fps</p>
                     </div>
                 </div>
             </div>
-
-            <AlertDialog.Root open={showDisconnectAlert}>
-                <AlertDialog.Portal>
-                    <AlertDialog.Overlay className="fixed inset-0 bg-black/50" />
-                    <AlertDialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-                        <AlertDialog.Title className="text-xl font-bold mb-4">Connection Lost</AlertDialog.Title>
-                        <AlertDialog.Description className="text-gray-600 mb-6">
-                            The connection to Camera {cameraId} has been lost. Would you like to attempt to reconnect?
-                        </AlertDialog.Description>
-                        <div className="flex justify-end gap-4">
-                            <AlertDialog.Cancel asChild>
-                                <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-                                    Cancel
-                                </button>
-                            </AlertDialog.Cancel>
-                            <AlertDialog.Action asChild>
-                                <button onClick={() => setIsConnected(true)} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                                    Reconnect
-                                </button>
-                            </AlertDialog.Action>
-                        </div>
-                    </AlertDialog.Content>
-                </AlertDialog.Portal>
-            </AlertDialog.Root>
         </div>
     );
 };
