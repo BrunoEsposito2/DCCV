@@ -24,6 +24,8 @@ class Detector {
     enum Mode { Face, Body } m;
     HOGDescriptor hog;
     CascadeClassifier face_cascade;
+    Rect detectionWindow;
+    bool useWindow;
 
     bool loadCascadeClassifier() {
         vector<string> possiblePaths = {
@@ -51,8 +53,10 @@ class Detector {
     }
 
 public:
-    Detector() : m(Face), hog() {
+    Detector(int x = 0, int y = 0, int width = 0, int height = 0) : m(Face), hog() {
         hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
+        detectionWindow = Rect(x, y, width, height);
+        useWindow = (width > 0 && height > 0);
 
         if(!loadCascadeClassifier()) {
             throw runtime_error("Cannot load face cascade classifier. Using body detection only.");
@@ -66,6 +70,28 @@ public:
     vector<Rect> detect(InputArray img) {
         vector<Rect> found;
         Mat gray;
+
+        if (useWindow) {
+            // Verifica che la finestra sia all'interno dei limiti del frame
+            if (detectionWindow.x + detectionWindow.width > img.cols() ||
+                detectionWindow.y + detectionWindow.height > img.rows()) {
+                cerr << "Warning: Detection window exceeds frame boundaries. Using full frame." << endl;
+                useWindow = false;
+            } else {
+                // Usa solo la regione specificata
+                Mat roi = img.getMat()(detectionWindow);
+                cvtColor(roi, gray, COLOR_BGR2GRAY);
+                equalizeHist(gray, gray);
+
+                if (m == Face && !face_cascade.empty()) {
+                    face_cascade.detectMultiScale(gray, found, 1.1, 3, 0, Size(30, 30));
+                } else {
+                    hog.detectMultiScale(roi, found, 0, Size(8,8), Size(), 1.05, 2, false);
+                }
+                return found;
+            }
+        }
+
         cvtColor(img, gray, COLOR_BGR2GRAY);
         equalizeHist(gray, gray);
 
@@ -114,8 +140,15 @@ string generateRandomId(int length) {
 
 class VideoServer {
     string cameraId;
+    int windowX, windowY, windowWidth, windowHeight;
+    bool useWindow;
 public:
-    VideoServer(int camera, string file, string id = "") : running(false) {
+    VideoServer(int camera, string file, string id = "",
+                int x = 0, int y = 0, int width = 0, int height = 0)
+        : running(false), windowX(x), windowY(y),
+          windowWidth(width), windowHeight(height) {
+
+        useWindow = (width > 0 && height > 0);
         cameraId = id.empty() ? generateRandomId(10) : id;
 
         server.init_asio();
@@ -190,7 +223,7 @@ private:
         cout << "Press Ctrl+C to quit." << endl;
         cout << "Streaming on WebSocket..." << endl;
 
-        Detector detector;
+        Detector detector(windowX, windowY, windowWidth, windowHeight);
         Mat frame;
         running = true;
 
@@ -212,7 +245,16 @@ private:
 
             for (auto& r : found) {
                 detector.adjustRect(r);
-                rectangle(frame, r.tl(), r.br(), Scalar(0, 255, 0), 2);
+                if (useWindow) {
+                    // Se usiamo la finestra, aggiungi l'offset per la visualizzazione
+                    Rect displayRect = r;
+                    displayRect.x += windowX;
+                    displayRect.y += windowY;
+                    rectangle(frame, displayRect.tl(), displayRect.br(), Scalar(0, 255, 0), 2);
+                } else {
+                    // Comportamento originale
+                    rectangle(frame, r.tl(), r.br(), Scalar(0, 255, 0), 2);
+                }
             }
 
             Mat resized;
@@ -252,13 +294,18 @@ private:
     atomic<bool> running;
 };
 
+// Use example of x, y, h and w parameters: --x=320 --y=180 --width=600 --height=320
 int main(int argc, char** argv) {
     CommandLineParser parser(argc, argv,
         "{ help h   |   | print help message }"
         "{ camera c | 0 | capture video from camera (device index starting from 0) }"
         "{ video v  |   | use video as input }"
         "{ port p   | 5555 | WebSocket server port }"
-        "{ id      |   | camera identifier for the stream endpoint }");
+        "{ id      |   | camera identifier for the stream endpoint }"
+        "{ x       | 0 | x coordinate of detection window }"
+        "{ y       | 0 | y coordinate of detection window }"
+        "{ width w | 0 | width of detection window (0 for full frame) }"
+        "{ height h| 0 | height of detection window (0 for full frame) }");
 
     parser.about("Face/Body detection with WebSocket streaming capability");
 
@@ -272,16 +319,26 @@ int main(int argc, char** argv) {
     int port = parser.get<int>("port");
     string cameraId = parser.get<string>("id");
 
+    // Parametri opzionali della finestra
+    int x = parser.get<int>("x");
+    int y = parser.get<int>("y");
+    int width = parser.get<int>("width");
+    int height = parser.get<int>("height");
+
     if (!parser.check()) {
         parser.printErrors();
         return 1;
     }
 
-    VideoServer server(camera, file, cameraId);
+    VideoServer server(camera, file, cameraId, x, y, width, height);
 
     try {
         cout << "Video server started on port " << port << endl;
         cout << "Stream available at: /camera" << server.getCameraId() << endl;
+        if (width > 0 && height > 0) {
+            cout << "Using detection window: x=" << x << ", y=" << y
+                 << ", width=" << width << ", height=" << height << endl;
+        }
         server.run(port);
     } catch (const exception& e) {
         cerr << "Error: " << e.what() << endl;

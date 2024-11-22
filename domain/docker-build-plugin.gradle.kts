@@ -3,6 +3,7 @@ import org.gradle.internal.os.OperatingSystem
 tasks.register("dockerBuild") {
     if (OperatingSystem.current().isWindows) {
         doFirst {
+            delete("${projectDir}/build")
             exec {
                 commandLine("cmd", "/c", "docker build -t ubuntu-opencv_build_streaming .")
                 standardOutput = System.out
@@ -17,7 +18,7 @@ tasks.register("dockerBuild") {
                             " -v %cd%\\\\\\\\../.gradle:/tmp/.gradle" +
                             " -p 5555:5555 --name ubuntu-opencv_build-container" +
                             " --rm ubuntu-opencv_build_streaming /bin/bash " +
-                            "-c \"GRADLE_USER_HOME=/tmp/.gradle ./gradlew build\""
+                            "-c \"GRADLE_USER_HOME=/tmp/.gradle ./gradlew domain:build\""
                 )
                 standardOutput = System.out
                 errorOutput = System.err
