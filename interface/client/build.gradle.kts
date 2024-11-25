@@ -13,6 +13,8 @@ dependencies {
 
 // Configura il task per installare le dipendenze npm
 tasks.named<com.github.gradle.node.npm.task.NpmInstallTask>("npmInstall") {
+    delete("${projectDir}/build")
+    delete("${projectDir}/node_modules")
     inputs.file("package.json")
     outputs.dir("node_modules")
 }
