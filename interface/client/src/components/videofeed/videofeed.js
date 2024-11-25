@@ -1,13 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Users, Ratio, GalleryHorizontalEnd, Crop, Crosshair } from 'lucide-react';
-import * as AlertDialog from '@radix-ui/react-alert-dialog';
+import { Camera, Users, Ratio, GalleryHorizontalEnd, Crop, Crosshair, CheckCircle, XCircle } from 'lucide-react';
 
-const VideoFeed = ({ cameraId, details, setDetails, wsEndpoint }) => {
+const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
     const canvasRef = useRef(null);
     const selectionRef = useRef(null);
     const markerRef = useRef(null);
     const wsRef = useRef(null);
-
+    
     const [isConnected, setIsConnected] = useState(false);
     const [selectionMode, setSelectionMode] = useState('none'); // 'none', 'start', 'region'
     const [startPoint, setStartPoint] = useState(null);
@@ -18,79 +17,61 @@ const VideoFeed = ({ cameraId, details, setDetails, wsEndpoint }) => {
 
     // WebSocket Connection Logic
     useEffect(() => {
-        let reconnectTimer;
+        wsRef.current = new WebSocket(wsUrl);
+        wsRef.current.binaryType = 'arraybuffer';
 
-        const connectWebSocket = () => {
-            try {
-                wsRef.current = new WebSocket(wsEndpoint);
-                wsRef.current.binaryType = 'arraybuffer';
+        wsRef.current.onopen = () => {
+            console.log('Connected to video stream');
+            setIsConnected(true);
+        };
 
-                wsRef.current.onopen = () => {
-                    console.log('Connected to video server');
-                    setIsConnected(true);
-                    if (reconnectTimer) clearTimeout(reconnectTimer);
-                };
+        wsRef.current.onclose = () => {
+            console.log('Disconnected from video stream');
+            setIsConnected(false);
+        };
 
-                wsRef.current.onclose = () => {
-                    console.log('Disconnected from video server');
-                    setIsConnected(false);
-                    reconnectTimer = setTimeout(connectWebSocket, 3000);
-                };
+        wsRef.current.onmessage = (event) => {
+            if (typeof event.data === 'string') {
+                // Handle JSON data (metrics)
+                const data = JSON.parse(event.data);
+                setDetails({
+                    peopleCount: data.detectedCount,
+                    mode: data.mode,
+                    fps: data.fps,
+                    serviceStatus: {
+                        subscribe: 'pending',
+                        input: 'pending',
+                        config: 'pending'
+                    }
+                });
+            } else {
+                // Handle binary data (video frame)
+                const blob = new Blob([event.data], { type: 'image/jpeg' });
+                const imageUrl = URL.createObjectURL(blob);
+                const img = new Image();
 
-                wsRef.current.onerror = (error) => {
-                    console.error('WebSocket error:', error);
-                    setIsConnected(false);
-                };
-
-                wsRef.current.onmessage = (event) => {
-                    try {
-                        if (typeof event.data === 'string') {
-                            // Handle JSON data (metrics)
-                            const data = JSON.parse(event.data);
-                            setDetails({
-                                peopleCount: data.detectedCount,
-                                mode: data.mode,
-                                fps: data.fps
-                            });
-                        } else {
-                            // Handle binary data (video frame)
-                            const blob = new Blob([event.data], { type: 'image/jpeg' });
-                            const imageUrl = URL.createObjectURL(blob);
-                            const img = new Image();
-
-                            img.onload = () => {
-                                const canvas = canvasRef.current;
-                                if (canvas) {
-                                    const ctx = canvas.getContext('2d');
-                                    if (canvas.width !== img.width) {
-                                        canvas.width = img.width;
-                                        canvas.height = img.height;
-                                    }
-                                    ctx.drawImage(img, 0, 0);
-                                    URL.revokeObjectURL(imageUrl);
-                                }
-                            };
-                            img.src = imageUrl;
+                img.onload = () => {
+                    const canvas = canvasRef.current;
+                    if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        if (canvas.width !== img.width) {
+                            canvas.width = img.width;
+                            canvas.height = img.height;
                         }
-                    } catch (error) {
-                        console.error('Error processing message:', error);
+                        ctx.drawImage(img, 0, 0);
+                        URL.revokeObjectURL(imageUrl);
                     }
                 };
-
-            } catch (error) {
-                console.error('WebSocket connection error:', error);
-                setIsConnected(false);
-                reconnectTimer = setTimeout(connectWebSocket, 3000);
+                img.src = imageUrl;
             }
         };
 
-        connectWebSocket();
-
         return () => {
-            if (wsRef.current) wsRef.current.close();
-            if (reconnectTimer) clearTimeout(reconnectTimer);
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
         };
-    }, [wsEndpoint, setDetails]);
+    }, [wsUrl]);
 
     // Region Selection Handlers
     const handleCanvasClick = (e) => {
@@ -316,7 +297,7 @@ const VideoFeed = ({ cameraId, details, setDetails, wsEndpoint }) => {
                     </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-4 gap-4 mt-4">
                     <div className="bg-white p-6 rounded-lg shadow border hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-2 text-blue-600">
                             <Users className="w-5 h-5"/>
@@ -342,6 +323,45 @@ const VideoFeed = ({ cameraId, details, setDetails, wsEndpoint }) => {
                         </div>
                         <p className="text-3xl font-bold mt-2">{details.fps}</p>
                         <p className="text-sm text-gray-500 mt-1">Video stream fps</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-lg shadow border hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-2 text-blue-600">
+                            <CheckCircle className="w-5 h-5"/>
+                            <h3 className="font-semibold">Services Status</h3>
+                        </div>
+                        <div className="mt-2 space-y-1">
+                            <div className="flex items-center gap-2">
+                                {details.serviceStatus.subscribe === 'success' ? (
+                                    <CheckCircle className="w-4 h-4 text-green-500" />
+                                ) : details.serviceStatus.subscribe === 'failure' ? (
+                                    <XCircle className="w-4 h-4 text-red-500" />
+                                ) : (
+                                    <div className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
+                                )}
+                                <span className="text-sm">Subscribe</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {details.serviceStatus.input === 'success' ? (
+                                    <CheckCircle className="w-4 h-4 text-green-500" />
+                                ) : details.serviceStatus.input === 'failure' ? (
+                                    <XCircle className="w-4 h-4 text-red-500" />
+                                ) : (
+                                    <div className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
+                                )}
+                                <span className="text-sm">Input</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {details.serviceStatus.config === 'success' ? (
+                                    <CheckCircle className="w-4 h-4 text-green-500" />
+                                ) : details.serviceStatus.config === 'failure' ? (
+                                    <XCircle className="w-4 h-4 text-red-500" />
+                                ) : (
+                                    <div className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
+                                )}
+                                <span className="text-sm">Config</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
