@@ -92,7 +92,7 @@ class TestBehavior extends AnyFlatSpec:
 
     def sendSuccessfullConfig(arg: String): Unit =
       cameraManager ! Config(inputProbe.ref, Queue(powershellCommand + " -ExecutionPolicy Bypass -File src/test/powershell/testCameraManagerScript.ps1 ", arg))
-      inputProbe.expectMessageType[ConfigServiceSuccess]
+      inputProbe.expectMessageType[ConfigServiceSuccess](FiniteDuration(5, duration.SECONDS))
       Thread.sleep(3000)
 
     def sendSuccessfullInput(input: String): Unit =
@@ -111,7 +111,7 @@ class TestBehavior extends AnyFlatSpec:
     outputProbe.expectMessage(SubscribeServiceSuccess(expectedInfo))
     outputProbe.expectMessage(FiniteDuration(10, duration.SECONDS), Output("firstRunArg"))
 
-    requestChildStatus(Running) 
+    requestChildStatus(Running)
     sendSuccessfullInput("runtimeArg1")
     sendSuccessfullConfig("secondRunArg")
     outputProbe.expectMessage(SubscribeServiceSuccess(expectedInfo))
