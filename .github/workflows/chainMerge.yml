@@ -66,7 +66,7 @@ jobs:
         echo "::set-output name=next_branch::$next_branch"
 
     - name: Set up JDK 17
-      if: ${{ steps.determine-next.outputs.next_branch != '' }}
+      if: steps.determine-next.outputs.next_branch != ''
       uses: actions/setup-java@v3
       with:
         distribution: 'corretto'
@@ -93,14 +93,23 @@ jobs:
           db.tracking.insertOne({});
         EOF
 
+    - name: Run Domain Branch Gradle Test
+      if: github.ref == 'refs/heads/domain'
+      run: |
+        docker build -t opencv-build-image ./domain
+        docker run -v ${{ github.workspace }}:/workspace \
+           --name ubuntu-opencv_build-container \
+           --rm opencv-build-image \
+           /bin/bash -c "GRADLE_USER_HOME=/tmp/.gradle ./gradlew test"
+
     - name: Run Gradle tests
-      if: ${{ steps.determine-next.outputs.next_branch != '' }}
+      if: steps.determine-next.outputs.next_branch != '' && github.ref != 'refs/heads/domain'
       run: |
         subproject="${GITHUB_REF#refs/heads/}"
         ./gradlew ${subproject}:test
 
     - name: Push changes to next branch if tests pass
-      if: ${{ success() && steps.determine-next.outputs.next_branch != '' }}
+      if: success() && steps.determine-next.outputs.next_branch != ''
       run: |
         current_branch="${GITHUB_REF#refs/heads/}"
         next_branch="${{ steps.determine-next.outputs.next_branch }}"
@@ -110,7 +119,7 @@ jobs:
         git checkout $next_branch
 
         # Merge the current branch into it again to ensure it's up to date
-        git merge $current_branch
+        git merge --no-verify --no-ff $current_branch
 
         # Push the changes to the next branch
         git push origin $next_branch
