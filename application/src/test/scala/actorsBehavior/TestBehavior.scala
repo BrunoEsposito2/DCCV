@@ -111,7 +111,7 @@ class TestBehavior extends AnyFlatSpec:
     outputProbe.expectMessage(SubscribeServiceSuccess(expectedInfo))
     outputProbe.expectMessage(FiniteDuration(10, duration.SECONDS), Output("firstRunArg"))
 
-    requestChildStatus(Running)
+    requestChildStatus(Running) 
     sendSuccessfullInput("runtimeArg1")
     sendSuccessfullConfig("secondRunArg")
     outputProbe.expectMessage(SubscribeServiceSuccess(expectedInfo))
