@@ -1,3 +1,24 @@
+/*
+ * Distributed Cluster for Computer Vision
+ * Copyright (C) 2024 Andrea Ingargiola, Bruno Esposito
+ * andrea.ingargiola@studio.unibo.it
+ * bruno.esposito@studio.unibo.it
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
 package actorsBehavior
 
 import actor.{CameraManager, ReachableActor}
@@ -71,7 +92,7 @@ class TestBehavior extends AnyFlatSpec:
 
     def sendSuccessfullConfig(arg: String): Unit =
       cameraManager ! Config(inputProbe.ref, Queue(powershellCommand + " -ExecutionPolicy Bypass -File src/test/powershell/testCameraManagerScript.ps1 ", arg))
-      inputProbe.expectMessageType[ConfigServiceSuccess]
+      inputProbe.expectMessageType[ConfigServiceSuccess](FiniteDuration(5, duration.SECONDS))
       Thread.sleep(3000)
 
     def sendSuccessfullInput(input: String): Unit =
