@@ -39,9 +39,10 @@ class TestBehavior extends AnyFlatSpec:
   "The AbstractService" should "provide an actor behavior for dealing with all the others system's actors in an abstract way, " +
     "letting the user implement the operations of the concrete client operations without change the actor behavior " in testAbstractServiceBehavior()
   "The Supervisor" should "mantain an updated global view of all the actors deployed in the system" in testSupervisorBehavior()
+  private case class CustomMessage(testString: String) extends Message
 
   private class ConcreteService(probeRef: ActorRef[Message]) extends AbstractService:
-    override def onMessage(msg:Message):Unit =
+    override def onMessage(msg: Message, clientInfo: Info): Unit =
       msg match
         case msg: SwitchToCamera => probeRef ! msg
         case msg: ConfigServiceSuccess => probeRef ! msg
@@ -60,6 +61,9 @@ class TestBehavior extends AnyFlatSpec:
     val camera_B = testKit.spawn(CameraManager(9999).create())
     val expectedCamera_B_info = Info().setSelfRef(camera_B).setActorType(ActorTypes.CameraManager)
 
+    //test custom message receive
+    client1 ! CustomMessage("test")
+    probe1.expectMessage(CustomMessage("test"))
 
     //configure clients consumers
     client1 ! ConfigureClientSink(byteString => {

@@ -56,7 +56,7 @@ trait AbstractService extends ReachableActor:
 
   private def getClientBehavior(info:Info, sink:Sink[ByteString, _])(implicit mat: Materializer, context: ActorContext[Message]): PartialFunction[Message, Behavior[Message]] =
     case CameraMap(replyTo, map) =>
-      this.onMessage(CameraMap(replyTo, map))
+      this.onMessage(CameraMap(replyTo, map), info)
       Behaviors.same
       
     case ConfigureClientSink(function) =>
@@ -64,28 +64,32 @@ trait AbstractService extends ReachableActor:
       this.behavior(info, Sink.foreach(function))
       
     case SwitchToCamera(cameraRef) =>
-      this.onMessage(SwitchToCamera(cameraRef))
+      this.onMessage(SwitchToCamera(cameraRef), info)
       if (info.linkedActors.nonEmpty && cameraRef != info.linkedActors.head) info.linkedActors.head ! Unsubscribe(context.self)
       cameraRef ! Subscribe(info.self, sink.runWith(StreamRefs.sinkRef()))
       this.behavior(info.resetLinkedActors(), sink)
       
     case SubscribeServiceSuccess(cameraInfo) =>
-      this.onMessage(SubscribeServiceSuccess(cameraInfo))
+      this.onMessage(SubscribeServiceSuccess(cameraInfo), info)
       this.behavior(info.resetLinkedActors().addRef(cameraInfo.self), sink)
 
     case SubscribeServiceFailure(info, cause) =>
-      this.onMessage(SubscribeServiceFailure(info, cause))
+      this.onMessage(SubscribeServiceFailure(info, cause), info)
       Behaviors.same
       
     case InputServiceSuccess(cameraInfo) =>
-      this.onMessage(InputServiceSuccess(cameraInfo))
+      this.onMessage(InputServiceSuccess(cameraInfo), info)
       this.behavior(info, sink)
 
     case ConfigServiceSuccess(author) =>
-      this.onMessage(ConfigServiceSuccess(author))
+      this.onMessage(ConfigServiceSuccess(author), info)
       this.behavior(info, sink)
 
-  def onMessage(msg:Message): Unit
+    case customMessage: Message =>
+      this.onMessage(customMessage, info)
+      Behaviors.same
+
+  def onMessage(msg: Message, clientInfo: Info): Unit
 
   private def behavior(info:Info, sink:Sink[ByteString, _])(implicit mat: Materializer, context: ActorContext[Message]): Behavior[Message] =
     Behaviors.setup { ctx =>
