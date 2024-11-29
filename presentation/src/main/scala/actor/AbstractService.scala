@@ -1,3 +1,24 @@
+/*
+ * Distributed Cluster for Computer Vision
+ * Copyright (C) 2024 Andrea Ingargiola, Bruno Esposito
+ * andrea.ingargiola@studio.unibo.it
+ * bruno.esposito@studio.unibo.it
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
 package actor
 
 import akka.actor.typed.{ActorRef, Behavior}
@@ -35,7 +56,7 @@ trait AbstractService extends ReachableActor:
 
   private def getClientBehavior(info:Info, sink:Sink[ByteString, _])(implicit mat: Materializer, context: ActorContext[Message]): PartialFunction[Message, Behavior[Message]] =
     case CameraMap(replyTo, map) =>
-      this.onMessage(CameraMap(replyTo, map))
+      this.onMessage(CameraMap(replyTo, map), info)
       Behaviors.same
       
     case ConfigureClientSink(function) =>
@@ -43,28 +64,32 @@ trait AbstractService extends ReachableActor:
       this.behavior(info, Sink.foreach(function))
       
     case SwitchToCamera(cameraRef) =>
-      this.onMessage(SwitchToCamera(cameraRef))
+      this.onMessage(SwitchToCamera(cameraRef), info)
       if (info.linkedActors.nonEmpty && cameraRef != info.linkedActors.head) info.linkedActors.head ! Unsubscribe(context.self)
       cameraRef ! Subscribe(info.self, sink.runWith(StreamRefs.sinkRef()))
       this.behavior(info.resetLinkedActors(), sink)
       
     case SubscribeServiceSuccess(cameraInfo) =>
-      this.onMessage(SubscribeServiceSuccess(cameraInfo))
+      this.onMessage(SubscribeServiceSuccess(cameraInfo), info)
       this.behavior(info.resetLinkedActors().addRef(cameraInfo.self), sink)
 
     case SubscribeServiceFailure(info, cause) =>
-      this.onMessage(SubscribeServiceFailure(info, cause))
+      this.onMessage(SubscribeServiceFailure(info, cause), info)
       Behaviors.same
       
     case InputServiceSuccess(cameraInfo) =>
-      this.onMessage(InputServiceSuccess(cameraInfo))
+      this.onMessage(InputServiceSuccess(cameraInfo), info)
       this.behavior(info, sink)
 
     case ConfigServiceSuccess(author) =>
-      this.onMessage(ConfigServiceSuccess(author))
+      this.onMessage(ConfigServiceSuccess(author), info)
       this.behavior(info, sink)
 
-  def onMessage(msg:Message): Unit
+    case customMessage: Message =>
+      this.onMessage(customMessage, info)
+      Behaviors.same
+
+  def onMessage(msg: Message, clientInfo: Info): Unit
 
   private def behavior(info:Info, sink:Sink[ByteString, _])(implicit mat: Materializer, context: ActorContext[Message]): Behavior[Message] =
     Behaviors.setup { ctx =>
