@@ -1,3 +1,24 @@
+/*
+ * Distributed Cluster for Computer Vision
+ * Copyright (C) 2024 Andrea Ingargiola, Bruno Esposito
+ * andrea.ingargiola@studio.unibo.it
+ * bruno.esposito@studio.unibo.it
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
 package actorsBehavior
 
 import actor.{AbstractService, CameraManager, ConfigureClientSink, Supervisor}
@@ -18,9 +39,10 @@ class TestBehavior extends AnyFlatSpec:
   "The AbstractService" should "provide an actor behavior for dealing with all the others system's actors in an abstract way, " +
     "letting the user implement the operations of the concrete client operations without change the actor behavior " in testAbstractServiceBehavior()
   "The Supervisor" should "mantain an updated global view of all the actors deployed in the system" in testSupervisorBehavior()
+  private case class CustomMessage(testString: String) extends Message
 
   private class ConcreteService(probeRef: ActorRef[Message]) extends AbstractService:
-    override def onMessage(msg:Message):Unit =
+    override def onMessage(msg: Message, clientInfo: Info): Unit =
       msg match
         case msg: SwitchToCamera => probeRef ! msg
         case msg: ConfigServiceSuccess => probeRef ! msg
@@ -39,6 +61,9 @@ class TestBehavior extends AnyFlatSpec:
     val camera_B = testKit.spawn(CameraManager(9999).create())
     val expectedCamera_B_info = Info().setSelfRef(camera_B).setActorType(ActorTypes.CameraManager)
 
+    //test custom message receive
+    client1 ! CustomMessage("test")
+    probe1.expectMessage(CustomMessage("test"))
 
     //configure clients consumers
     client1 ! ConfigureClientSink(byteString => {
