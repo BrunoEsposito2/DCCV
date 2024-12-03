@@ -2,10 +2,11 @@ package database
 
 import com.mongodb.{ConnectionString, MongoClientSettings, MongoException, ServerApi, ServerApiVersion}
 import com.mongodb.client.{MongoClient, MongoClients, MongoCollection, MongoDatabase}
-import org.bson.{BsonDocument, BsonInt64, Document}
+import org.bson.{BsonDocument, BsonInt64, BsonObjectId, Document}
 import org.bson.conversions.Bson
-import scala.util.Properties
+import org.bson.types.ObjectId
 
+import scala.util.Properties
 import scala.collection.mutable.ListBuffer
 
 object MongoDBDriver:
@@ -16,7 +17,7 @@ private class MongoDBDriver:
   val DB_COLLECTION: String = "tracking"
   var mongoClient: MongoClient = _
 
-  def connect(): String =
+  def connect(): Option[MongoCollection[Document]] =
     val serverAPI: ServerApi = ServerApi.builder().version(ServerApiVersion.V1).build()
 
     val settings: MongoClientSettings = MongoClientSettings.builder()
@@ -29,13 +30,15 @@ private class MongoDBDriver:
 
     /* Send a ping to confirm a successful connection */
     try {
-      val command: Bson = new BsonDocument("ping", new BsonInt64(1))
-      val commandResult: Document = database.runCommand(command)
-      "MongoDB: Connection established"
+      val oid = ObjectId("5f8d6b2b9d3b2a1b1c9d1e1f")
+      val doc = Document("_id", oid).append("ping", 1)
+      val collection = database.getCollection(DB_COLLECTION)
+      collection.insertOne(doc)
+      Option(collection)
     } catch {
       case mongodbException: MongoException =>
         System.err.println(mongodbException);
-        "MongoDB: Connection Failed"
+        Option.empty
     }
 
   def getTrackingData(): ListBuffer[Document] =
