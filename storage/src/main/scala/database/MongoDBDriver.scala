@@ -1,5 +1,6 @@
 package database
 
+import com.mongodb.client.model.{Filters, Updates, UpdateOptions}
 import com.mongodb.{ConnectionString, MongoClientSettings, MongoException, ServerApi, ServerApiVersion}
 import com.mongodb.client.{MongoClient, MongoClients, MongoCollection, MongoDatabase}
 import org.bson.{BsonDocument, BsonInt64, BsonObjectId, Document}
@@ -31,9 +32,16 @@ private class MongoDBDriver:
     /* Send a ping to confirm a successful connection */
     try {
       val oid = ObjectId("5f8d6b2b9d3b2a1b1c9d1e1f")
-      val doc = Document("_id", oid).append("ping", 1)
+      val updateOptions = UpdateOptions().upsert(true)
+     
       val collection = database.getCollection(DB_COLLECTION)
-      collection.insertOne(doc)
+      collection.updateOne(
+        Filters.eq("_id", oid), // Filter by specific ObjectId
+        Updates.combine(
+          Updates.set("ping", 1),
+        ),
+        updateOptions
+      )
       Option(collection)
     } catch {
       case mongodbException: MongoException =>
