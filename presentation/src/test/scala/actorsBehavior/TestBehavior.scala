@@ -21,10 +21,11 @@
 
 package actorsBehavior
 
-import actor.{AbstractService, CameraManager, ConfigureClientSink, Supervisor}
+import actor.{AbstractClient, CameraManager, ConfigureClientSink, Supervisor}
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import akka.actor.typed.ActorRef
-import message.{CameraMap, *}
+import akka.util.ByteString
+import message.*
 import org.scalatest.flatspec.AnyFlatSpec
 import utils.ChildStatuses.{Idle, Running}
 import utils.{ActorTypes, Info, StandardChildProcessCommands}
@@ -41,7 +42,7 @@ class TestBehavior extends AnyFlatSpec:
   "The Supervisor" should "mantain an updated global view of all the actors deployed in the system" in testSupervisorBehavior()
   private case class CustomMessage(testString: String) extends Message
 
-  private class ConcreteService(probeRef: ActorRef[Message]) extends AbstractService:
+  private class ConcreteClient(probeRef: ActorRef[Message], initialPrefix: String) extends AbstractClient:
     override def onMessage(msg: Message, clientInfo: Info): Unit =
       msg match
         case msg: SwitchToCamera => probeRef ! msg
@@ -49,12 +50,18 @@ class TestBehavior extends AnyFlatSpec:
         //every message operation can be implemented in this case match. For this test the implementation is the same for all message types
         case _ => probeRef ! msg
 
+    override def startingSinkFunction(): ByteString => Unit =
+      byteString => {
+        println(initialPrefix + byteString.utf8String.strip())
+        probeRef ! Output(initialPrefix + byteString.utf8String.strip())
+      }
+
   def testAbstractServiceBehavior(): Unit =
     val testKit: ActorTestKit = ActorTestKit()
     val probe1 = testKit.createTestProbe[Message]()
-    val client1 = testKit.spawn(AbstractService(new ConcreteService(probe1.ref)))
+    val client1 = testKit.spawn(AbstractClient(new ConcreteClient(probe1.ref, "c1: ")))
     val probe2 = testKit.createTestProbe[Message]()
-    val client2 = testKit.spawn(AbstractService(new ConcreteService(probe2.ref)))
+    val client2 = testKit.spawn(AbstractClient(new ConcreteClient(probe2.ref, "c2: ")))
     val outputProbe = testKit.createTestProbe[Message]()
     val camera_A = testKit.spawn(CameraManager(9999).create())
     val expectedCamera_A_info = Info().setSelfRef(camera_A).setActorType(ActorTypes.CameraManager)
@@ -65,23 +72,11 @@ class TestBehavior extends AnyFlatSpec:
     client1 ! CustomMessage("test")
     probe1.expectMessage(CustomMessage("test"))
 
-    //configure clients consumers
-    client1 ! ConfigureClientSink(byteString => {
-      println("c1: "+byteString.utf8String.strip())
-      probe1 ! Output("c1: "+byteString.utf8String.strip())
-    })
-
-    client2 ! ConfigureClientSink(byteString => {
-      Thread.sleep(1000) //client2 is delayed for testing purposes
-      println("c2: " + byteString.utf8String.strip())
-      probe2 ! Output("c2: " + byteString.utf8String.strip())
-    })
-
     //client1 starts camera_A
     val powershellCommand: String = if (System.getProperty("os.name").toLowerCase().contains("win")) "powershell" else "pwsh"
     val configCommand = Queue(powershellCommand + " -ExecutionPolicy Bypass -File ../application/src/test/powershell/testCameraManagerScript.ps1 ", "configArg")
 
-    AbstractService.configureCamera(camera_A, client1, configCommand)
+    AbstractClient.configureCamera(camera_A, client1, configCommand)
     probe1.expectMessageType[ConfigServiceSuccess]
     Thread.sleep(5000)
 
@@ -123,7 +118,7 @@ class TestBehavior extends AnyFlatSpec:
     camera_A ! Input(client2, StandardChildProcessCommands.Kill.command)
     probe2.expectMessage(InputServiceSuccess(expectedCamera_A_info))
     probe1.expectNoMessage(FiniteDuration(2, TimeUnit.SECONDS))
-    AbstractService.configureCamera(camera_B, client2, configCommand)
+    AbstractClient.configureCamera(camera_B, client2, configCommand)
     probe2.expectMessageType[ConfigServiceSuccess]
     client2 ! SwitchToCamera(camera_B)
     probe2.expectMessage(SwitchToCamera(camera_B))
@@ -139,8 +134,8 @@ class TestBehavior extends AnyFlatSpec:
   def testSupervisorBehavior(): Unit =
     val testKit: ActorTestKit = ActorTestKit()
     val clientsProbe = testKit.createTestProbe[Message]()
-    val client1 = testKit.spawn(AbstractService(new ConcreteService(clientsProbe.ref)))
-    val client2 = testKit.spawn(AbstractService(new ConcreteService(clientsProbe.ref)))
+    val client1 = testKit.spawn(AbstractClient(new ConcreteClient(clientsProbe.ref, "c1: ")))
+    val client2 = testKit.spawn(AbstractClient(new ConcreteClient(clientsProbe.ref, "c2: ")))
     val camera_A = testKit.spawn(CameraManager(9999).create())
     val expectedCamera_A_info = Info().setSelfRef(camera_A).setActorType(ActorTypes.CameraManager)
     val camera_B = testKit.spawn(CameraManager(9999).create())
