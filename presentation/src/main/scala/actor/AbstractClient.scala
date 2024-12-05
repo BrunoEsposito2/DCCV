@@ -37,22 +37,25 @@ private type Ref = ActorRef[Message]
 
 case class ConfigureClientSink(function: ByteString => Unit) extends OutputServiceMsg
 
-object AbstractService:
-  def apply(client: AbstractService): Behavior[Message] =
+object AbstractClient:
+  def apply(client: AbstractClient): Behavior[Message] =
     client.create()
 
   def configureCamera(cameraRef: Ref, selfRef: Ref, args: Queue[String]): Unit =
     cameraRef ! Config(selfRef, args)
 
-trait AbstractService extends ReachableActor:
+trait AbstractClient extends ReachableActor:
   def create(): Behavior[Message] =
     Behaviors.setup {
       ctx =>
         ctx.system.receptionist.tell(Receptionist.register(ServiceKey[Message]("outputs"), ctx.self))
         implicit val context: ActorContext[Message] = ctx
         implicit val mat: Materializer = Materializer(context.system)
-        this.behavior(super.setActorInfo(Info()).setActorType(Client), Sink.foreach[ByteString](bs => bs))
+        this.behavior(super.setActorInfo(Info()).setActorType(Client), Sink.foreach[ByteString](this.startingSinkFunction()))
     }
+  
+  protected def startingSinkFunction(): ByteString => Unit =
+    (bs:ByteString) => bs
 
   private def getClientBehavior(info:Info, sink:Sink[ByteString, _])(implicit mat: Materializer, context: ActorContext[Message]): PartialFunction[Message, Behavior[Message]] =
     case CameraMap(replyTo, map) =>
