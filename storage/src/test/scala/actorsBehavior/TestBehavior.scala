@@ -21,20 +21,21 @@
 
 package actorsBehavior
 
-import actor.{AbstractService, CameraManager, ConfigureClientSink, DBWriter, Supervisor}
+import actor.{CameraManager, ConfigureClientSink, DBWriter, Supervisor}
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import akka.actor.typed.ActorRef
 import com.mongodb.client.model.Filters
 import database.MongoDBDriver
 import message.{CameraMap, *}
+import org.bson.{BsonString, Document}
 import org.scalatest.flatspec.AnyFlatSpec
 import utils.ChildStatuses.{Idle, Running}
 import utils.{ActorTypes, Info, StandardChildProcessCommands}
 
 import java.util.concurrent.TimeUnit
 import scala.collection.immutable.Queue
-import scala.concurrent.duration
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{Await, duration}
+import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import scala.util.Random
 
 class TestBehavior extends AnyFlatSpec:
@@ -55,18 +56,32 @@ class TestBehavior extends AnyFlatSpec:
     //reset testCamera entries in DB
     collection.get.deleteMany(Filters.eq("cameraName", "testCamera"))
 
-    val randomNumber1 = Random().nextInt()
-    val randomNumber2 = Random().nextInt()
+    val randomNumber1 = Random().nextInt(10000000)
+    val randomNumber2 = Random().nextInt(10000000)
+    val expectedList = List(randomNumber2.toString, randomNumber1.toString).sorted
+    println(randomNumber1.toString + " "+randomNumber2.toString)
     val powershellCommand: String = if (System.getProperty("os.name").toLowerCase().contains("win")) "powershell" else "pwsh"
     val configCommand = Queue(powershellCommand + " -ExecutionPolicy Bypass -File ../application/src/test/powershell/testCameraManagerScript.ps1 ", randomNumber1.toString)
 
     camera ! Config(probe.ref, configCommand)
     probe.expectMessage(ConfigServiceSuccess(expectedCameraInfo))
     dbWriter ! SwitchToCamera(camera)
-    Thread.sleep(2000)
+    Thread.sleep(5000)
     camera ! Input(probe.ref, randomNumber2.toString)
+    probe.expectMessage(InputServiceSuccess(expectedCameraInfo))
+    Thread.sleep(2000)
 
-    val res = collection.get.find(Filters.eq("cameraName", "testCamera"))
-    println(res)
+    val resIterator = collection.get.find(Filters.eq("cameraName", BsonString("testCamera"))).iterator()
+    assert(resIterator.available() == 2)
+    val resList = List(resIterator.next(), resIterator.next())
+    assert(resList
+      .sortBy(doc => doc.get("value").toString)
+      .map(doc => doc.get("value").toString)
+      .equals(expectedList))
+
+    //test passed: cleanup
+    collection.get.deleteMany(Filters.eq("cameraName", "testCamera"))
+    camera ! Input(probe.ref, StandardChildProcessCommands.Kill.command)
+    probe.expectMessage(InputServiceSuccess(expectedCameraInfo))
 
 

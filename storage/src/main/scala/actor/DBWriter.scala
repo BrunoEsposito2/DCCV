@@ -22,6 +22,7 @@
 package actor
 
 import akka.actor.typed.scaladsl.Behaviors
+import akka.util.ByteString
 import com.mongodb.client.MongoCollection
 import message.Message
 import org.bson.Document
@@ -29,19 +30,16 @@ import utils.Info
 
 object DBWriter:
   def apply(mongoCollection: MongoCollection[Document], cameraName: String): Behavior =
-    new DBWriter().create(mongoCollection, cameraName)
+    new DBWriter(mongoCollection, cameraName).create()
 
-private class DBWriter extends AbstractService:
-  def create(mongoCollection: MongoCollection[Document], cameraName: String): Behavior =
-    Behaviors.setup {
-      ctx =>
-        ctx.self ! ConfigureClientSink(bs =>
-          println(bs)
-          val doc = Document("cameraName", cameraName).append("value", bs.utf8String.strip())
-          mongoCollection.insertOne(doc)
-        )
-        super.create()
-    }
+private class DBWriter(mongoCollection: MongoCollection[Document], cameraName: String) extends AbstractClient:
+
   override def onMessage(msg: Message, clientInfo: Info): Unit =
     msg match
       case _ => println(msg)
+
+  override def startingSinkFunction(): ByteString => Unit =
+    bs =>
+      println(bs)
+      val doc = Document("cameraName", cameraName).append("value", bs.utf8String.strip())
+      mongoCollection.insertOne(doc)
