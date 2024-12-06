@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import VideoFeed from './components/videofeed';
 import CameraList from './components/cameralist';
 import './App.css';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
 const VIDEO_WS_URL = process.env.REACT_APP_VIDEO_WS_URL || 'ws://localhost:5555';
@@ -16,7 +18,8 @@ const App = () => {
             subscribe: 'pending',
             input: 'pending',
             config: 'pending'
-        }
+        },
+        lastWindowUpdate: null
     });
 
     const cameras = [
@@ -112,6 +115,7 @@ const App = () => {
                     />
                 </div>
             </div>
+            <ToastContainer position="bottom-right" />
         </div>
     );
 };
