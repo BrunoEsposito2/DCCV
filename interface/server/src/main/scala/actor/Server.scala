@@ -1,30 +1,28 @@
 package actor
 
-import akka.actor.typed.{ActorRef, Behavior}
-import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
-import akka.actor.typed.scaladsl.Behaviors
-import message.{CameraMap, ConfigServiceSuccess, InputServiceSuccess, Message, Ping, Subscribe, SubscribeServiceFailure, SubscribeServiceSuccess, SwitchToCamera, Unsubscribe}
-import routing.VertxRouter
+import akka.actor.typed.ActorRef
+import message.{CameraMap, Config, ConfigServiceSuccess, InputServiceSuccess, Message, SubscribeServiceFailure, SubscribeServiceSuccess}
+import router.VertxRouter
+import utils.Info
 
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
+import util.ForwardConfigData
+
+import scala.collection.immutable.Queue
 
 object Server:
   def apply(): Server = new Server()
 
-private class Server extends AbstractService:
+private class Server extends AbstractClient:
   private val vertxRouter = VertxRouter()
-  private var replyToRef: Option[ActorRef[Message]] = None
 
   // Inizializziamo il router HTTP appena viene creato il Server
   vertxRouter.initRoutes()
 
-  override def onMessage(msg: Message): Unit =
+  override def onMessage(msg: Message, clientInfo: Info): Unit =
     msg match {
       case CameraMap(replyTo, map) =>
-        replyToRef = Some(map.head._1.self)
-
-      case SwitchToCamera(cameraRef) =>
-        replyToRef.get ! SwitchToCamera(cameraRef)
+        vertxRouter.setServerRef(clientInfo.self)
+        vertxRouter.updateCameraMap(map, clientInfo)
 
       case SubscribeServiceSuccess(cameraInfo) =>
         vertxRouter.updateServiceStatus("subscribe", "success")
@@ -37,4 +35,12 @@ private class Server extends AbstractService:
 
       case ConfigServiceSuccess(author) =>
         vertxRouter.updateServiceStatus("config", "success")
+
+      case ForwardConfigData(cameraRef, data) =>
+        val command: String = "\"/workspace/domain/build/release/domain/bin/domain\" -v=\"/workspace/domain/video/video.avi\" -id=3"
+        val windowData: String = "--x=" + data.get("startX") +
+          " --y=" + data.get("startY") +
+          " --width=" + data.get("width") +
+          " --height=" + data.get("height")
+        cameraRef ! Config(clientInfo.self, Queue(command, windowData))
     }
