@@ -21,7 +21,6 @@
 
 package actor
 
-import akka.actor.typed.scaladsl.Behaviors
 import akka.util.ByteString
 import com.mongodb.client.MongoCollection
 import message.Message
@@ -36,10 +35,9 @@ private class DBWriter(mongoCollection: MongoCollection[Document], cameraName: S
 
   override def onMessage(msg: Message, clientInfo: Info): Unit =
     msg match
-      case _ => println(msg)
+      case _ =>
 
   override def startingSinkFunction(): ByteString => Unit =
     bs =>
-      println(bs)
       val doc = Document("cameraName", cameraName).append("value", bs.utf8String.strip())
       mongoCollection.insertOne(doc)

@@ -26,10 +26,9 @@ import akka.actor.typed.scaladsl.Behaviors
 import com.mongodb.client.MongoCollection
 import database.MongoDBDriver
 import message.{CameraMap, Message, SwitchToCamera}
-import org.bson.{BsonDocument, BsonInt64, BsonObjectId, Document}
+import org.bson.Document
 import utils.{ChildStatuses, Info}
 
-import scala.collection.immutable.HashMap
 import scala.util.Random
 
 object DBCoordinator:
@@ -52,13 +51,13 @@ private class DBCoordinator:
     Behaviors.setup(ctx => {
       Behaviors.receiveMessage {
         case CameraMap(replyTo, map) =>
-          val newSet = map.keySet
-            .filter(map(_).status.equals(ChildStatuses.Running))
+          val newSet = map
+            .filter((k,v) => v.equals(ChildStatuses.Running)).keySet
           newSet
             .filter(!previousCameraSet.contains(_))
             .foreach(newRunningCamera =>
               ctx.spawn(
-                DBWriter(mongoCollection, newRunningCamera.self.toString), "DBWriter_"+Random.nextInt())
+                DBWriter(mongoCollection, newRunningCamera.self.toString), "DBWriter_" + Random.nextInt(100000))
               ! SwitchToCamera(newRunningCamera.self)
           )
           this.behavior(previousCameraSet union newSet, mongoCollection)
