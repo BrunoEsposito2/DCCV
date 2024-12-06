@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Users, Ratio, GalleryHorizontalEnd, Crop, Crosshair, CheckCircle, XCircle } from 'lucide-react';
+import { toast } from 'react-toastify';
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
 
 const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
     const canvasRef = useRef(null);
@@ -14,36 +17,41 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
     const [selectionEnd, setSelectionEnd] = useState(null);
     const [selectedRegion, setSelectedRegion] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
 
     // WebSocket Connection Logic
     useEffect(() => {
+        let isComponentMounted = true;
+
         wsRef.current = new WebSocket(wsUrl);
         wsRef.current.binaryType = 'arraybuffer';
 
         wsRef.current.onopen = () => {
-            console.log('Connected to video stream');
-            setIsConnected(true);
+            if (isComponentMounted) {
+                console.log('Connected to video stream');
+                setIsConnected(true);
+            }
         };
 
         wsRef.current.onclose = () => {
-            console.log('Disconnected from video stream');
-            setIsConnected(false);
+            if (isComponentMounted) {
+                console.log('Disconnected from video stream');
+                setIsConnected(false);
+            }
         };
 
         wsRef.current.onmessage = (event) => {
+            if (!isComponentMounted) return;
+
             if (typeof event.data === 'string') {
                 // Handle JSON data (metrics)
                 const data = JSON.parse(event.data);
-                setDetails({
+                setDetails(prev => ({
+                    ...prev,
                     peopleCount: data.detectedCount,
                     mode: data.mode,
                     fps: data.fps,
-                    serviceStatus: {
-                        subscribe: 'pending',
-                        input: 'pending',
-                        config: 'pending'
-                    }
-                });
+                }));
             } else {
                 // Handle binary data (video frame)
                 const blob = new Blob([event.data], { type: 'image/jpeg' });
@@ -53,6 +61,11 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
                 img.onload = () => {
                     const canvas = canvasRef.current;
                     if (canvas) {
+                        setFrameSize({
+                            width: img.naturalWidth,
+                            height: img.naturalHeight
+                        });
+
                         const ctx = canvas.getContext('2d');
                         if (canvas.width !== img.width) {
                             canvas.width = img.width;
@@ -67,36 +80,50 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
         };
 
         return () => {
+            isComponentMounted = false;
             if (wsRef.current) {
                 wsRef.current.close();
+                wsRef.current = null;
             }
         };
     }, [wsUrl]);
+
+    const convertToRealCoordinates = (canvasX, canvasY) => {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const scaleX = frameSize.width / rect.width;
+        const scaleY = frameSize.height / rect.height;
+
+        return {
+            x: Math.round(canvasX * scaleX),
+            y: Math.round(canvasY * scaleY)
+        };
+    };
 
     // Region Selection Handlers
     const handleCanvasClick = (e) => {
         if (selectionMode === 'start') {
             const rect = canvasRef.current.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const canvasX = e.clientX - rect.left;
+            const canvasY = e.clientY - rect.top;
 
-            const percentageX = (x / rect.width) * 100;
-            const percentageY = (y / rect.height) * 100;
+            // Convertiamo in coordinate reali
+            const realCoords = convertToRealCoordinates(canvasX, canvasY);
 
-            setStartPoint({ x: percentageX, y: percentageY });
-            setSelectionStart({ x, y });
-            setSelectionEnd({ x, y });
+            setStartPoint(realCoords);
+            setSelectionStart(realCoords);
+            setSelectionEnd(realCoords);
             setSelectionMode('region');
 
+            // L'interfaccia visiva continua a usare le coordinate del canvas
             if (markerRef.current) {
-                markerRef.current.style.left = `${x}px`;
-                markerRef.current.style.top = `${y}px`;
+                markerRef.current.style.left = `${canvasX}px`;
+                markerRef.current.style.top = `${canvasY}px`;
                 markerRef.current.style.display = 'block';
             }
 
             if (selectionRef.current) {
-                selectionRef.current.style.left = `${x}px`;
-                selectionRef.current.style.top = `${y}px`;
+                selectionRef.current.style.left = `${canvasX}px`;
+                selectionRef.current.style.top = `${canvasY}px`;
                 selectionRef.current.style.width = '0px';
                 selectionRef.current.style.height = '0px';
                 selectionRef.current.style.display = 'block';
@@ -127,36 +154,47 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
         if (!isDragging || !selectionRef.current || !startPoint) return;
 
         const rect = canvasRef.current.getBoundingClientRect();
-        const x = Math.min(Math.max(0, e.clientX - rect.left), rect.width);
-        const y = Math.min(Math.max(0, e.clientY - rect.top), rect.height);
-        setSelectionEnd({ x, y });
 
-        const startX = (startPoint.x * rect.width) / 100;
-        const startY = (startPoint.y * rect.height) / 100;
-        const width = Math.abs(x - startX);
-        const height = Math.abs(y - startY);
-        const left = Math.min(startX, x);
-        const top = Math.min(startY, y);
+        // Calcoliamo le coordinate del canvas, limitate ai bordi
+        const canvasX = Math.min(Math.max(0, e.clientX - rect.left), rect.width);
+        const canvasY = Math.min(Math.max(0, e.clientY - rect.top), rect.height);
 
+        // Convertiamo in coordinate reali per memorizzazione
+        const realCoords = convertToRealCoordinates(canvasX, canvasY);
+        setSelectionEnd(realCoords);
+
+        // Calcoliamo le dimensioni per l'interfaccia visiva usando le coordinate del canvas
+        const startX = (startPoint.x * rect.width) / frameSize.width; // Convertiamo il punto iniziale reale in coordinate canvas
+        const startY = (startPoint.y * rect.height) / frameSize.height;
+
+        const width = Math.abs(canvasX - startX);
+        const height = Math.abs(canvasY - startY);
+        const left = Math.min(startX, canvasX);
+        const top = Math.min(startY, canvasY);
+
+        // Aggiorniamo l'interfaccia visiva
         selectionRef.current.style.left = `${left}px`;
         selectionRef.current.style.top = `${top}px`;
         selectionRef.current.style.width = `${width}px`;
         selectionRef.current.style.height = `${height}px`;
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = async () => {
         if (!isDragging || !startPoint) return;
         setIsDragging(false);
 
         const rect = canvasRef.current.getBoundingClientRect();
-        const startX = (startPoint.x * rect.width) / 100;
-        const startY = (startPoint.y * rect.height) / 100;
+
+        // Converto le coordinate dei punti iniziale e finale in coordinate reali
+        const startX = startPoint.x;
+        const startY = startPoint.y;
         const endX = selectionEnd.x;
         const endY = selectionEnd.y;
 
         const width = Math.abs(endX - startX);
         const height = Math.abs(endY - startY);
 
+        // Verifico che la selezione sia abbastanza grande (usando valori reali)
         if (width > 10 && height > 10) {
             const selectedRegion = {
                 x: Math.min(startX, endX),
@@ -164,15 +202,34 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
                 width,
                 height,
                 startPoint,
-                percentages: {
-                    x: (Math.min(startX, endX) / rect.width) * 100,
-                    y: (Math.min(startY, endY) / rect.height) * 100,
-                    width: (width / rect.width) * 100,
-                    height: (height / rect.height) * 100
-                }
             };
             setSelectedRegion(selectedRegion);
             setSelectionMode('none');
+
+            // Invio i dati al server
+            try {
+                // Creo l'oggetto con solo i dati necessari
+                const windowData = {
+                    x: Math.min(startX, endX),
+                    y: Math.min(startY, endY),
+                    width,
+                    height
+                };
+
+                await sendWindowData(windowData);
+
+                // Aggiungo un indicatore visuale di successo
+                setDetails(prev => ({
+                    ...prev,
+                    lastWindowUpdate: 'success'
+                }));
+            } catch (error) {
+                // Aggiungo un indicatore visuale di errore
+                setDetails(prev => ({
+                    ...prev,
+                    lastWindowUpdate: 'error'
+                }));
+            }
         }
     };
 
@@ -185,6 +242,30 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
         }
         if (selectionRef.current) {
             selectionRef.current.style.display = 'none';
+        }
+    };
+
+    const sendWindowData = async (windowData) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/window`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(windowData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            toast.success('Window data sent successfully');
+            return result;
+        } catch (error) {
+            console.error('Error sending window data:', error);
+            toast.error('Failed to send window data');
+            throw error;
         }
     };
 
@@ -287,9 +368,9 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
                                 <h3 className="font-semibold text-blue-700 mb-2">Selected Region</h3>
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                     <div>
-                                        <p>Start: {selectedRegion.startPoint.x.toFixed(1)}% x {selectedRegion.startPoint.y.toFixed(1)}%</p>
-                                        <p>Position: {selectedRegion.percentages.x.toFixed(1)}% x {selectedRegion.percentages.y.toFixed(1)}%</p>
-                                        <p>Size: {selectedRegion.percentages.width.toFixed(1)}% x {selectedRegion.percentages.height.toFixed(1)}%</p>
+                                        <p>Start Point: {selectedRegion.startPoint.x} x {selectedRegion.startPoint.y}</p>
+                                        <p>Position: {selectedRegion.x} x {selectedRegion.y}</p>
+                                        <p>Size: {selectedRegion.width} x {selectedRegion.height}</p>
                                     </div>
                                 </div>
                             </>
