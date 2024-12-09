@@ -18,9 +18,9 @@ private class MongoDBDriver:
   val DB_COLLECTION: String = "tracking"
   var mongoClient: MongoClient = _
 
-  private val user: String = "admin"
+  private val user: String = "APP-USERNAME"
   private val source: String = "admin"
-  private val password: Array[Char] = "admin".toCharArray
+  private val password: Array[Char] = "APP-PASSWORD".toCharArray
 
   private val credential = MongoCredential.createCredential(user, source, password)
 
