@@ -36,6 +36,7 @@ private class MongoDBDriver:
     mongoClient = MongoClients.create(settings)
     val database: MongoDatabase = mongoClient.getDatabase(DB_NAME)
 
+    println("DATABASE CONNECTED SUCCESSFULLY")
     /* Send a ping to confirm a successful connection */
     try {
       val oid = ObjectId("5f8d6b2b9d3b2a1b1c9d1e1f")
