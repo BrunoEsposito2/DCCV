@@ -18,11 +18,11 @@ private class MongoDBDriver:
   val DB_COLLECTION: String = "tracking"
   var mongoClient: MongoClient = _
 
-  val user: String = "admin"
-  val source: String = "admin"
-  val password: Array[Char] = "admin".toCharArray
+  private val user: String = "admin"
+  private val source: String = "admin"
+  private val password: Array[Char] = "admin".toCharArray
 
-  val credential = MongoCredential.createCredential(user, source, password)
+  private val credential = MongoCredential.createCredential(user, source, password)
 
   def connect(): Option[MongoCollection[Document]] =
     val serverAPI: ServerApi = ServerApi.builder().version(ServerApiVersion.V1).build()
@@ -52,14 +52,6 @@ private class MongoDBDriver:
       Option(collection)
     } catch {
       case mongodbException: MongoException =>
-        System.err.println(mongodbException);
+        System.err.println(mongodbException)
         Option.empty
     }
-
-  def getTrackingData(): ListBuffer[Document] =
-    val collection: MongoCollection[Document] = mongoClient.getDatabase(DB_NAME).getCollection(DB_COLLECTION)
-    val resultData: ListBuffer[Document] = ListBuffer()
-    collection.find().forEach(data => resultData += data)
-    resultData
-
-
