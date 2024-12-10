@@ -34,6 +34,7 @@ import utils.{ActorTypes, Info, StandardChildProcessCommands}
 
 import scala.collection.immutable.Queue
 import scala.util.Random
+import scala.concurrent.duration.FiniteDuration
 
 class TestBehavior extends AnyFlatSpec:
 
@@ -66,7 +67,7 @@ class TestBehavior extends AnyFlatSpec:
     val powershellCommand: String = if (System.getProperty("os.name").toLowerCase().contains("win")) "powershell" else "pwsh"
     val configCommand = Queue(powershellCommand + " -ExecutionPolicy Bypass -File ../application/src/test/powershell/testCameraManagerScript.ps1 ", randomNumber1.toString)
     camera ! Config(probe.ref, configCommand)
-    probe.expectMessage(java.time.Duration.ofSeconds(10), ConfigServiceSuccess(expectedCameraInfo))
+    probe.expectMessage(FiniteDuration(10, "seconds"), ConfigServiceSuccess(expectedCameraInfo))
     dbWriter ! SwitchToCamera(camera)
     Thread.sleep(5000)
 
