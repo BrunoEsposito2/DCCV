@@ -20,7 +20,7 @@ private class MongoDBDriver:
 
   private val user: String = sys.env.getOrElse("MONGO_USER", "APP-USERNAME")
   private val password: Array[Char] = sys.env.getOrElse("MONGO_PASSWORD", "APP-PASSWORD").toCharArray
-  private val source: String = "admin"
+  private val source: String = "DCCV"
 
   private val credential = MongoCredential.createCredential(user, source, password)
 
