@@ -93,10 +93,14 @@ jobs:
           db.createUser({
             user: 'APP-USERNAME',
             pwd: 'APP-PASSWORD',
-            roles: [{ role: 'readWrite', db: 'DCCV' }]
+            roles: [
+              { role: 'readWrite', db: 'DCCV' },
+              { role: 'userAdmin', db: 'DCCV' }
+            ]
           });
           db.createCollection('tracking');
           db.tracking.insertOne({});
+          db.auth('APP-USERNAME', 'APP-PASSWORD');
         EOF
 
     - name: Run Domain Branch Gradle Test
