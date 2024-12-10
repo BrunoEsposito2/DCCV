@@ -42,8 +42,7 @@ class TestBehavior extends AnyFlatSpec:
 
   def testDBWriterBehavior(): Unit =
     val testKit: ActorTestKit = ActorTestKit()
-    val probe = testKit.createTestProbe[Message]()
-    probe.setConfig(probe.config.withTimeout(java.time.Duration.ofSeconds(10)))
+    val probe = testKit.createTestProbe[Message]()(timeout = java.time.Duration.ofSeconds(10))
     val collection = MongoDBDriver().connect()
 
     Thread.sleep(2000)
