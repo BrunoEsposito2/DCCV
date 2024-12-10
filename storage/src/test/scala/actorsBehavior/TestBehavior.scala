@@ -43,6 +43,7 @@ class TestBehavior extends AnyFlatSpec:
   def testDBWriterBehavior(): Unit =
     val testKit: ActorTestKit = ActorTestKit()
     val probe = testKit.createTestProbe[Message]()
+    probe.setConfig(probe.config.withTimeout(java.time.Duration.ofSeconds(10)))
     val collection = MongoDBDriver().connect()
 
     Thread.sleep(2000)
@@ -50,10 +51,12 @@ class TestBehavior extends AnyFlatSpec:
 
     val dbWriter = testKit.spawn(DBWriter(collection.get, "testCamera"))
     val camera = testKit.spawn(CameraManager(9999).create())
+    Thread.sleep(2000)
     val expectedCameraInfo = Info().setSelfRef(camera).setActorType(ActorTypes.CameraManager)
 
     //reset testCamera entries in DB
     collection.get.deleteMany(Filters.eq("cameraName", "testCamera"))
+    Thread.sleep(2000)
 
     //create test random numbers
     val randomNumber1 = Random().nextInt(10000000)
@@ -65,6 +68,7 @@ class TestBehavior extends AnyFlatSpec:
     val configCommand = Queue(powershellCommand + " -ExecutionPolicy Bypass -File ../application/src/test/powershell/testCameraManagerScript.ps1 ", randomNumber1.toString)
     camera ! Config(probe.ref, configCommand)
     probe.expectMessage(ConfigServiceSuccess(expectedCameraInfo))
+    Thread.sleep(2000)
     dbWriter ! SwitchToCamera(camera)
     Thread.sleep(5000)
 
