@@ -23,6 +23,8 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: admin
           MONGO_INITDB_ROOT_PASSWORD: admin
           MONGO_INITDB_DATABASE: DCCV
+          MONGODB_USER: APP-USERNAME
+          MONGODB_PASSWORD: APP-PASSWORD
         ports:
           - 27017:27017
         options: >-
@@ -87,10 +89,18 @@ jobs:
     - name: Initalize MongoDB
       run: |
         mongosh --host localhost:27017 -u admin -p admin --authenticationDatabase admin <<EOF
-          db = db.getSiblingDB('DCCV');
-          db.createUser({ user: 'APP-USERNAME', pwd: 'APP-PASSWORD', roles: [{ role: 'readWrite', db: 'DCCV' }] })
+          use DCCV;
+          db.createUser({
+            user: 'APP-USERNAME',
+            pwd: 'APP-PASSWORD',
+            roles: [
+              { role: 'readWrite', db: 'DCCV' },
+              { role: 'userAdmin', db: 'DCCV' }
+            ]
+          });
           db.createCollection('tracking');
           db.tracking.insertOne({});
+          db.auth('APP-USERNAME', 'APP-PASSWORD');
         EOF
 
     - name: Run Domain Branch Gradle Test
@@ -106,7 +116,7 @@ jobs:
       if: steps.determine-next.outputs.next_branch != '' && github.ref != 'refs/heads/domain'
       run: |
         subproject="${GITHUB_REF#refs/heads/}"
-        ./gradlew ${subproject}:test
+        ./gradlew ${subproject}:test # --info # for debug
 
     - name: Push changes to next branch if tests pass
       if: success() && steps.determine-next.outputs.next_branch != ''

@@ -11,7 +11,4 @@ class MongoDBDriverTest extends AnyFlatSpec:
   val testKit: ActorTestKit = ActorTestKit()
   val mongodbDriver: MongoDBDriver = MongoDBDriver()
 
-  def testDBConnection(): Unit = assert(mongodbDriver.connect() == "MongoDB: Connection established")
-
-  //def testDBGetTrackingData(): Unit = assert(mongodbDriver.getTrackingData().nonEmpty)
-
+  def testDBConnection(): Unit = assert(mongodbDriver.connect().isDefined)
