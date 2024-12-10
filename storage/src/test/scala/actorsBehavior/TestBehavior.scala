@@ -42,7 +42,7 @@ class TestBehavior extends AnyFlatSpec:
 
   def testDBWriterBehavior(): Unit =
     val testKit: ActorTestKit = ActorTestKit()
-    val probe = testKit.createTestProbe[Message]()(timeout = java.time.Duration.ofSeconds(10))
+    val probe = testKit.createTestProbe[Message]()
     val collection = MongoDBDriver().connect()
 
     Thread.sleep(2000)
@@ -66,8 +66,7 @@ class TestBehavior extends AnyFlatSpec:
     val powershellCommand: String = if (System.getProperty("os.name").toLowerCase().contains("win")) "powershell" else "pwsh"
     val configCommand = Queue(powershellCommand + " -ExecutionPolicy Bypass -File ../application/src/test/powershell/testCameraManagerScript.ps1 ", randomNumber1.toString)
     camera ! Config(probe.ref, configCommand)
-    probe.expectMessage(ConfigServiceSuccess(expectedCameraInfo))
-    Thread.sleep(2000)
+    probe.expectMessage(java.time.Duration.ofSeconds(10), ConfigServiceSuccess(expectedCameraInfo))
     dbWriter ! SwitchToCamera(camera)
     Thread.sleep(5000)
 
