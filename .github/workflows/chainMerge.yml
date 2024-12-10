@@ -23,6 +23,8 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: admin
           MONGO_INITDB_ROOT_PASSWORD: admin
           MONGO_INITDB_DATABASE: DCCV
+          MONGODB_USER: APP-USERNAME
+          MONGODB_PASSWORD: APP-PASSWORD
         ports:
           - 27017:27017
         options: >-
