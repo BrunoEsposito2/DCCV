@@ -87,11 +87,12 @@ jobs:
     - name: Initalize MongoDB
       run: |
         mongosh --host localhost:27017 -u admin -p admin --authenticationDatabase admin <<EOF
-          db = db.getSiblingDB('DCCV');
-          db.createUser({ user: 'APP-USERNAME', pwd: 'APP-PASSWORD', roles: [{ role: 'readWrite', db: 'DCCV' }] }, 
-          { 
-            authSource: 'DCCV'
-          })
+          use DCCV;
+          db.createUser({
+            user: 'APP-USERNAME',
+            pwd: 'APP-PASSWORD',
+            roles: [{ role: 'readWrite', db: 'DCCV' }]
+          });
           db.createCollection('tracking');
           db.tracking.insertOne({});
         EOF
