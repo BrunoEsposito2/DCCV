@@ -20,16 +20,13 @@ private class MongoDBDriver:
 
   private val user: String = sys.env.getOrElse("MONGO_USER", "APP-USERNAME")
   private val password: Array[Char] = sys.env.getOrElse("MONGO_PASSWORD", "APP-PASSWORD").toCharArray
-  private val source: String = "DCCV"
+  private val source: String = DB_NAME
 
   private val credential = MongoCredential.createCredential(user, source, password)
 
   def connect(): Option[MongoCollection[Document]] =
-    val serverAPI: ServerApi = ServerApi.builder().version(ServerApiVersion.V1).build()
-
     val settings: MongoClientSettings = MongoClientSettings.builder()
       .applyConnectionString(ConnectionString(scala.sys.env.getOrElse("DATABASE_URI", "mongodb://localhost:27017/")))
-      .serverApi(serverAPI)
       .credential(credential)
       .build()
 
