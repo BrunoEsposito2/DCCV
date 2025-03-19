@@ -28,7 +28,7 @@ enum CLICommand(val command: String, val usage: String, val description: String)
   case ShowStream extends CLICommand("-showStream", "-showStream", "Shows the current camera stream")
   case ShowCameras extends CLICommand("-showCameras", "-showCameras", "Lists all available cameras and their status")
   case Subscribe extends CLICommand("-subscribe", "-subscribe <camera name>", "Subscribes to the specified camera's stream")
-  case Input extends CLICommand("-input", "-input <camera name> <input>", "Sends input to the specified camera")
+  case Input extends CLICommand("-input", "-input <input>", "Sends input to the specified camera")
   case Config extends CLICommand("-config", "-config <camera name> <param1> <param2> ...", "Configures parameters for the specified camera")
 
-  def helpText: String = f"${usage}%-30s${description}"
+  def helpText: String = f"$usage%-50s$description"

@@ -30,3 +30,8 @@ enum CLIMessage(val message: String):
   case InputError extends CLIMessage("before sending input use command -subscribe <cameraName> to subscribe to a camera.")
   case InsertCommand extends CLIMessage("insert command: ")
   case OutputPrefix extends CLIMessage("output received: ")
+
+object CLIMessage:
+  def getCameraSubscribingMessage(cameraName: String) = "subscribed to camera " + cameraName + "."
+  def getCameraConfigMessage(cameraName: String) = cameraName + " succesfully configured."
+  def getHelpMessage: String = "Available commands:\n" + CLICommand.values.map(cmd => cmd.helpText).mkString("\n")

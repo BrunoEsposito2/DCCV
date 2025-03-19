@@ -21,21 +21,22 @@
 
 package actor
 
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.PoisonPill
+import akka.actor.typed.ActorRef
 import akka.util.ByteString
-import message.{CameraMap, Input, Message, OutputServiceMsg}
+import message.{CameraMap, ConfigServiceSuccess, Input, InputServiceSuccess, Message, OutputServiceMsg, SubscribeServiceSuccess, SwitchToCamera}
 import parser.CLIMessage
 import utils.{ChildStatuses, Info}
-
-import scala.io.StdIn.{readInt, readLine}
-import scala.util.control.Breaks.break
 
 case class HideStream() extends OutputServiceMsg
 case class ShowStream() extends OutputServiceMsg
 case class SendInput(input: String) extends OutputServiceMsg
+case class Terminate() extends PoisonPill with OutputServiceMsg
 
 object CLIClient:
-  def apply(): CLIClient = new CLIClient()
+  val client = new CLIClient()
+  def apply(): CLIClient = client
+  def getCameraMap: Map[Info, ChildStatuses] = client.getCameraMap
 
 private class CLIClient extends AbstractClient:
   private var cameraMap: Map[Info, ChildStatuses] = Map.empty
@@ -43,16 +44,22 @@ private class CLIClient extends AbstractClient:
   override def onMessage(msg: Message, clientInfo: Info): Unit =
     msg match
       case CameraMap(replyTo, map) =>
-        cameraMap = map
-      case HideStream() => clientInfo.self ! ConfigureClientSink(bs => print(""))
+        cameraMap = Map.empty
+        cameraMap = cameraMap ++ map
+      case HideStream() => clientInfo.self ! ConfigureClientSink(bs => None)
       case ShowStream() => clientInfo.self ! ConfigureClientSink(this.startingSinkFunction())
       case SendInput(input) => 
         if(clientInfo.linkedActors.isEmpty) 
           println(CLIMessage.InputError.message)
         else clientInfo.linkedActors.head ! Input(clientInfo.self, input)
+      case SubscribeServiceSuccess(camera) => 
+      case ConfigServiceSuccess(camera) => println(CLIMessage.getCameraConfigMessage(camera.self.toString))
+      case SwitchToCamera(camera) =>
+      case InputServiceSuccess(camera) =>
       case _ => println("message received: "+msg.toString)
 
   override def startingSinkFunction(): ByteString => Unit =
-    bs => CLIMessage.OutputPrefix.message + println(bs.utf8String.strip())
+    bs => println(CLIMessage.OutputPrefix.message + bs.utf8String.strip())
 
-  def getCameraMap: Map[Info, ChildStatuses] = cameraMap.toList.sorted((entry1, entry2) => entry1._1.self.toString.compareTo(entry2._1.self.toString)).toMap
+  def getCameraMap: Map[Info, ChildStatuses] =
+    cameraMap.toList.sorted((entry1, entry2) => entry1._1.self.toString.compareTo(entry2._1.self.toString)).toMap
