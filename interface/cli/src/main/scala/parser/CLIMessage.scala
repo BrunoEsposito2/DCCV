@@ -32,6 +32,5 @@ enum CLIMessage(val message: String):
   case OutputPrefix extends CLIMessage("output received: ")
 
 object CLIMessage:
-  def getCameraSubscribingMessage(cameraName: String) = "subscribed to camera " + cameraName + "."
-  def getCameraConfigMessage(cameraName: String) = cameraName + " succesfully configured."
+  def getCameraConfigMessage(cameraName: String): String = cameraName + " succesfully configured."
   def getHelpMessage: String = "Available commands:\n" + CLICommand.values.map(cmd => cmd.helpText).mkString("\n")
