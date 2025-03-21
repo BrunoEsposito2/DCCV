@@ -67,6 +67,7 @@ class TestBehavior extends AnyFlatSpec:
     val powershellCommand: String = if (System.getProperty("os.name").toLowerCase().contains("win")) "powershell" else "pwsh"
     val configCommand = Queue(powershellCommand + " -ExecutionPolicy Bypass -File ../application/src/test/powershell/testCameraManagerScript.ps1 ", randomNumber1.toString)
     camera ! Config(probe.ref, configCommand)
+    Thread.sleep(5000)
     probe.expectMessage(FiniteDuration(10, "seconds"), ConfigServiceSuccess(expectedCameraInfo))
     dbWriter ! SwitchToCamera(camera)
     Thread.sleep(5000)
@@ -142,7 +143,7 @@ class TestBehavior extends AnyFlatSpec:
 
     val expectedDocuments =
       randoms.sorted
-      .map(rand => (rand -> randoms.sorted.indexOf(rand)))
+      .map(rand => rand -> randoms.sorted.indexOf(rand))
       .map((rand, index) =>
         if (index < 2)
           Document("cameraName", camera1.toString).append("value", rand.toString)
