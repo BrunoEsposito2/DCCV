@@ -1,11 +1,11 @@
 package routerserver
 
-import actor.{AbstractClient, Server}
+import actor.GenericClient
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import org.scalatest.flatspec.AnyFlatSpec
-import akka.actor.typed.{ActorRef, Behavior}
-import message.{CameraMap, Config, ConfigServiceSuccess, InputServiceSuccess, Message, Pong, SubscribeServiceFailure, SubscribeServiceSuccess}
-import io.vertx.core.http.{HttpClient, HttpMethod}
+import akka.actor.typed.ActorRef
+import message.{CameraMap, Config, Message, Pong}
+import io.vertx.core.http.HttpMethod
 import io.vertx.core.json.JsonObject
 import util.ForwardConfigData
 import io.vertx.core.{Future, Vertx}
@@ -17,10 +17,9 @@ import scala.collection.immutable.Queue
 import scala.concurrent.{Await, Promise}
 import scala.concurrent.duration.FiniteDuration
 
-
 class RouterServerTest extends AnyFlatSpec:
 
-  "A router object" should "send a ForwardConfigData message to the Server" in testRouterSentMessage()
+  "A router object" should "send a ForwardConfigData message to the GUIBackEnd" in testRouterSentMessage()
 
   val testKit: ActorTestKit = ActorTestKit()
 
@@ -31,7 +30,7 @@ class RouterServerTest extends AnyFlatSpec:
     object TestServer:
       def apply(): TestServer = new TestServer()
 
-    class TestServer extends AbstractClient:
+    class TestServer extends GenericClient:
       private val vertxRouter = VertxRouter()
 
       vertxRouter.initRoutes()

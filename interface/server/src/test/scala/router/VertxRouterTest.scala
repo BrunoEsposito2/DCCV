@@ -1,6 +1,6 @@
 package router
 
-import actor.Server
+import actor.GUIBackEnd
 import org.scalatest.flatspec.AnyFlatSpec
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import akka.actor.typed.ActorRef
@@ -189,7 +189,7 @@ class VertxRouterTest extends AnyFlatSpec:
 
   def testRouterWindowClientRequests(): Unit =
     // creating the vertx router inside the server actor
-    val serverRef = testKit.spawn(Server().create())
+    val serverRef = testKit.spawn(GUIBackEnd().create())
 
     val vertx = Vertx.vertx()
     val client = vertx.createHttpClient()
@@ -232,7 +232,7 @@ class VertxRouterTest extends AnyFlatSpec:
     val configStatus: String = "pending"
 
     // creating the vertx router inside the server actor
-    val serverRef = testKit.spawn(Server().create())
+    val serverRef = testKit.spawn(GUIBackEnd().create())
 
     val vertx = Vertx.vertx()
     val client = vertx.createHttpClient()
@@ -272,7 +272,7 @@ class VertxRouterTest extends AnyFlatSpec:
 
   def testRouterCameraSwitchClientRequests(): Unit =
     // creating the vertx router inside the server actor
-    val serverRef = testKit.spawn(Server().create())
+    val serverRef = testKit.spawn(GUIBackEnd().create())
 
     val vertx = Vertx.vertx()
     val client = vertx.createHttpClient()

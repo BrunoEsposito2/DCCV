@@ -38,7 +38,7 @@ object CLIClient:
   def apply(): CLIClient = client
   def getCameraMap: Map[Info, ChildStatuses] = client.getCameraMap
 
-private class CLIClient extends AbstractClient:
+private class CLIClient extends GenericClient:
   private var cameraMap: Map[Info, ChildStatuses] = Map.empty
 
   override def onMessage(msg: Message, clientInfo: Info): Unit =
