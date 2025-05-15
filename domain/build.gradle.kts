@@ -91,7 +91,10 @@ tasks.withType<LinkExecutable>().configureEach {
         "-lopencv_objdetect",
         "-lopencv_highgui",
         "-lopencv_imgcodecs",
-        "-lopencv_videoio"
+        "-lopencv_videoio",
+        "-lopencv_calib3d",
+        "-lopencv_features2d",
+        "-lopencv_video"
     ))
     linkerArgs.add("-Wl,-rpath,/usr/local/lib")
     linkerArgs.add("-Wl,-rpath,\$ORIGIN/libs")
