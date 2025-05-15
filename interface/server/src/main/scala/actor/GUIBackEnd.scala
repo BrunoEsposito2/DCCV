@@ -15,7 +15,6 @@ object GUIBackEnd:
 private class GUIBackEnd extends GenericClient:
   private val vertxRouter = VertxRouter()
 
-  // Inizializziamo il router HTTP appena viene creato il Server
   vertxRouter.initRoutes()
 
   override def onMessage(msg: Message, clientInfo: Info): Unit =
