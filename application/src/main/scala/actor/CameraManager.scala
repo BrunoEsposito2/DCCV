@@ -30,7 +30,7 @@ import message.{ChildStatus, Config, ConfigServiceSuccess, GetChildStatus, Input
 import utils.InputServiceErrors.MissingChild
 import utils.{ActorTypes, ChildStatuses, ConnectionController, Info, InputServiceErrors, StandardChildProcessCommands, StreamController}
 
-import java.io.{OutputStreamWriter, PrintWriter}
+import java.io.{OutputStreamWriter, PrintWriter, BufferedReader, InputStreamReader}
 import scala.sys.process.*
 import java.net.SocketTimeoutException
 import scala.collection.immutable.Queue
@@ -69,7 +69,22 @@ private class CameraManager(info:Info, childStdin:Option[PrintWriter], childOutp
   private def launchNewChildProcess(command: Queue[String])(implicit materializer: Materializer): (PrintWriter, ConnectionController) =
     val bashScript = command.foldLeft("")((acc, arg) => if (acc.isEmpty) arg else acc + " " + arg)
     var processStdin: Option[PrintWriter] = Option.empty
-    val processIO = ProcessIO(stdin => processStdin = Option(PrintWriter(OutputStreamWriter(stdin), true)), stdout => {}, stderr => {})
+    val processIO = ProcessIO(
+      stdin => processStdin = Option(PrintWriter(OutputStreamWriter(stdin), true)),
+      stdout => {
+        val reader = new BufferedReader(new InputStreamReader(stdout))
+        var line: String = null
+        while ({line = reader.readLine(); line != null}) {
+          println(s"Process stdout: $line")
+        }
+      },
+      stderr => {
+        val reader = new BufferedReader(new InputStreamReader(stderr))
+        var line: String = null
+        while ({line = reader.readLine(); line != null}) {
+          println(s"Process stderr: $line")
+        }
+      })
     //launch the bash script and wait for the launched program to reach the socket
     Process(bashScript).run(processIO)
     val newConnection = socket.enstablishConnection()
