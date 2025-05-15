@@ -14,4 +14,5 @@ include(
     ":interface",
     "interface:client",
     "interface:server",
-    "inteface:cli")
+    "inteface:cli",
+    ":distribution")
