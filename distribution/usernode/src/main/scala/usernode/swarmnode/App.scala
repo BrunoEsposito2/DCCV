@@ -1,6 +1,6 @@
 package usernode.swarmnode
 
-import actor.Server
+import actor.GUIBackEnd
 
 import scala.jdk.CollectionConverters.*
 import akka.actor.typed.ActorSystem
@@ -41,6 +41,6 @@ object App:
     ConfigFactory.parseMap(settings.asJava).withFallback(ConfigFactory.load())
 
   def main(args: Array[String]): Unit =
-    val system = ActorSystem(Server().create(), "akka-cluster-system", initBasicConfig)
+    val system = ActorSystem(GUIBackEnd().create(), "akka-cluster-system", initBasicConfig)
     val cluster = Cluster(system)
-    println("Server cluster created")
+    println("GUIBackEnd (server) cluster created")
