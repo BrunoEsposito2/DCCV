@@ -37,14 +37,14 @@ private type Ref = ActorRef[Message]
 
 case class ConfigureClientSink(function: ByteString => Unit) extends OutputServiceMsg
 
-object AbstractClient:
-  def apply(client: AbstractClient): Behavior[Message] =
+object GenericClient:
+  def apply(client: GenericClient): Behavior[Message] =
     client.create()
 
   def configureCamera(cameraRef: Ref, selfRef: Ref, args: Queue[String]): Unit =
     cameraRef ! Config(selfRef, args)
 
-trait AbstractClient extends ReachableActor:
+trait GenericClient extends ReachableActor:
   def create(): Behavior[Message] =
     Behaviors.setup {
       ctx =>

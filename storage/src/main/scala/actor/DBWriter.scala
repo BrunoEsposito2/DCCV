@@ -31,7 +31,7 @@ object DBWriter:
   def apply(mongoCollection: MongoCollection[Document], cameraName: String): Behavior =
     new DBWriter(mongoCollection, cameraName).create()
 
-private class DBWriter(mongoCollection: MongoCollection[Document], cameraName: String) extends AbstractClient:
+private class DBWriter(mongoCollection: MongoCollection[Document], cameraName: String) extends GenericClient:
 
   override def onMessage(msg: Message, clientInfo: Info): Unit =
     msg match

@@ -8,3 +8,13 @@
 rootProject.name = "DCCV"
 include("domain", "application", "presentation", "storage",
     "interface", "interface:client", "interface:server", "distribution")
+include(
+    ":domain",
+    ":application",
+    ":presentation",
+    ":storage",
+    ":interface",
+    "interface:client",
+    "interface:server",
+    "inteface:cli",
+    ":distribution")

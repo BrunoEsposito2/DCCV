@@ -9,13 +9,12 @@ import util.ForwardConfigData
 
 import scala.collection.immutable.Queue
 
-object Server:
-  def apply(): Server = new Server()
+object GUIBackEnd:
+  def apply(): GUIBackEnd = new GUIBackEnd()
 
-private class Server extends AbstractClient:
+private class GUIBackEnd extends GenericClient:
   private val vertxRouter = VertxRouter()
 
-  // Inizializziamo il router HTTP appena viene creato il Server
   vertxRouter.initRoutes()
 
   override def onMessage(msg: Message, clientInfo: Info): Unit =
