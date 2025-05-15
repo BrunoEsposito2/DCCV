@@ -30,7 +30,7 @@ import message.{ChildStatus, Config, ConfigServiceSuccess, GetChildStatus, Input
 import utils.InputServiceErrors.MissingChild
 import utils.{ActorTypes, ChildStatuses, ConnectionController, Info, InputServiceErrors, StandardChildProcessCommands, StreamController}
 
-import java.io.{OutputStreamWriter, PrintWriter}
+import java.io.{OutputStreamWriter, PrintWriter, BufferedReader, InputStreamReader}
 import scala.sys.process.*
 import java.net.SocketTimeoutException
 import scala.collection.immutable.Queue
