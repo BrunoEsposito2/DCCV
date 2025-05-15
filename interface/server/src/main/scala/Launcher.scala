@@ -4,4 +4,3 @@ import message.Message
 
 object Launcher extends App:
   val system = ActorSystem[Message](GUIBackEnd().create(), "surveillance-system")
-
