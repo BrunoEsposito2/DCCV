@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import VideoFeed from './components/videofeed';
 import CameraList from './components/cameralist';
 import './App.css';
@@ -9,7 +9,9 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:400
 const VIDEO_WS_URL = process.env.REACT_APP_VIDEO_WS_URL || 'ws://localhost:5555';
 
 const App = () => {
+    const videoFeedRef = useRef(null);
     const [currentCamera, setCurrentCamera] = useState('camera1'); // Valore iniziale di default
+    const [cameras, setCameras] = useState([]);
     const [details, setDetails] = useState({
         peopleCount: 0,
         mode: 'Initializing...',
@@ -22,11 +24,34 @@ const App = () => {
         lastWindowUpdate: null
     });
 
-    const cameras = [
-        { name: 'Main Entrance', id: 'camera1', location: 'Front' },
-        { name: 'Parking Area', id: 'camera2', location: 'Exterior' },
-        { name: 'Living Room', id: 'camera3', location: 'Indoor' },
-    ];
+    const [reconnectKey, setReconnectKey] = useState(0); // Used to force VideoFeed to reconnect
+
+    // Handle configure click from CameraList
+    const handleConfigureClick = (cameraId) => {
+        console.log(`Configure clicked for camera: ${cameraId}`);
+
+        try {
+            // Usa un ID specifico per il toast e controlla se esiste prima di rimuoverlo
+            toast.dismiss('camera-restart');
+            
+            // Mostra un nuovo toast con ID specifico
+            toast.info('Restarting camera...', {
+                toastId: 'camera-restart',
+                autoClose: 3000
+            });
+    
+            // Aggiungi un breve ritardo prima di cambiare il reconnectKey
+            setTimeout(() => {
+                setReconnectKey(prevKey => prevKey + 1);
+            }, 600); // Un breve ritardo per permettere al toast di essere visualizzato
+        } catch (error) {
+            console.error('Error handling toast during camera restart:', error);
+            // Forza comunque il reconnect anche se ci sono errori con i toast
+            setTimeout(() => {
+                setReconnectKey(prevKey => prevKey + 1);
+            }, 2000);
+        }
+    };
 
     // Polling dello stato dei servizi
     useEffect(() => {
@@ -40,15 +65,27 @@ const App = () => {
                 if (!contentType || !contentType.includes("application/json")) {
                     throw new TypeError("Response is not JSON");
                 }
-                const status = await response.json();
+                const data = await response.json();
                 setDetails(prev => ({
                     ...prev,
                     serviceStatus: {
-                        subscribe: status.subscribeStatus,
-                        input: status.inputStatus,
-                        config: status.configStatus,
-                    }
+                        subscribe: data.subscribeStatus,
+                        input: data.inputStatus,
+                        config: data.configStatus
+                    },
+                    peopleCount: data.peopleCount || prev.peopleCount,
+                    mode: data.mode || prev.mode,
+                    fps: data.fps || prev.fps
                 }));
+
+                if (data.cameras && Array.isArray(data.cameras)) {
+                    setCameras(data.cameras);
+
+                    // Se abbiamo ricevuto l'informazione sulla camera corrente dal server
+                    if (data.currentCamera) {
+                        setCurrentCamera(data.currentCamera);
+                    }
+                }
             } catch (error) {
                 console.error('Error polling status:', error);
                 // Optionally set an error state or show a notification
@@ -62,7 +99,21 @@ const App = () => {
     }, []);
 
     const handleCameraClick = async (cameraId) => {
+        // Se è già la camera corrente, non fare nulla
+        //if (cameraId === currentCamera) return;
+
         setCurrentCamera(cameraId); // Update UI immediately
+
+        // Dismiss any existing toasts
+        if (toast && toast.dismiss) {
+            toast.dismiss();
+        }
+        
+        // Show info toast
+        toast.info(`Switching to ${cameraId}...`, {
+            toastId: 'camera-switch',
+            autoClose: 2000
+        });
 
         try {
             const response = await fetch(`${API_BASE_URL}/camera/switch`, {
@@ -80,10 +131,15 @@ const App = () => {
             const data = await response.json();
             // Optional: verify the response data if needed
             console.log('Camera switch successful:', data);
+
+            // Force reconnection when switching cameras
+            setReconnectKey(prevKey => prevKey + 1);
+
         } catch (error) {
             console.error('Error notifying server of camera switch:', error);
-            // The UI is already updated, so we don't rollback
-            // but you might want to show an error notification
+            toast.error('Failed to switch camera', {
+                toastId: 'camera-switch-error'
+            });
         }
     };
 
@@ -101,10 +157,12 @@ const App = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="md:col-span-3">
                     <VideoFeed
+                        key={`videofeed-${currentCamera}-${reconnectKey}`} // Force re-mount when these change
+                        ref={videoFeedRef}
                         cameraId={currentCamera}
                         details={details}
                         setDetails={setDetails}
-                        wsUrl={`${VIDEO_WS_URL}/${currentCamera}`}
+                        wsUrl={`${VIDEO_WS_URL}`} // Base URL, component will form the full path
                     />
                 </div>
                 <div className="md:col-span-1">
@@ -112,10 +170,23 @@ const App = () => {
                         cameras={cameras}
                         onCameraClick={handleCameraClick}
                         currentCamera={currentCamera}
+                        onConfigureClick={handleConfigureClick}
                     />
                 </div>
             </div>
-            <ToastContainer position="bottom-right" />
+            <ToastContainer 
+                position="bottom-right"
+                autoClose={5000}
+                hideProgressBar={false}
+                newestOnTop
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                limit={3} // Limita il numero di notifiche visualizzate contemporaneamente
+                theme="light"
+            />
         </div>
     );
 };
