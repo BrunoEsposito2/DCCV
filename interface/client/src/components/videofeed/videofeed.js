@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Users, Ratio, GalleryHorizontalEnd, Crop, Crosshair, CheckCircle, XCircle } from 'lucide-react';
+import { Camera, Users, Ratio, GalleryHorizontalEnd, Crop, Crosshair } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
@@ -9,8 +9,15 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
     const selectionRef = useRef(null);
     const markerRef = useRef(null);
     const wsRef = useRef(null);
+
+    const reconnectTimeoutRef = useRef(null);
+    const connectionStabilized = useRef(false);
+    const toastShownRef = useRef(false);
     
+    const reconnectAttemptsRef = useRef(0);
+
     const [isConnected, setIsConnected] = useState(false);
+    const [isConnecting, setIsConnecting] = useState(false);
     const [selectionMode, setSelectionMode] = useState('none'); // 'none', 'start', 'region'
     const [startPoint, setStartPoint] = useState(null);
     const [selectionStart, setSelectionStart] = useState(null);
@@ -18,84 +25,261 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
     const [selectedRegion, setSelectedRegion] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
     const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
+    const [lastToastTime, setLastToastTime] = useState(0);
 
-    // WebSocket Connection Logic
-    useEffect(() => {
-        let isComponentMounted = true;
+    const [reconnectAttempts, setReconnectAttempts] = useState(0);
+    const MAX_RECONNECT_ATTEMPTS = 10; // Try reconnecting up to 10 times
+    const RECONNECT_DELAY_BASE = 1000;
+    const TOAST_COOLDOWN = 10000; // 10 seconds between connection toasts
 
-        wsRef.current = new WebSocket(wsUrl);
+    const lastFrameTimeRef = useRef(Date.now());
+    const reconnectDelayTimerRef = useRef(null);
+    const [showReconnecting, setShowReconnecting] = useState(false);
+    const RECONNECT_DISPLAY_DELAY = 3000; // Ritardo di 3 secondi prima di mostrare l'overlay
+
+    // Function to show toast with frequency limiting
+    const showLimitedToast = (message, type = 'success') => {
+        const now = Date.now();
+        if (now - lastToastTime > TOAST_COOLDOWN) {
+            setLastToastTime(now);
+            if (type === 'success') {
+                toast.success(message, { toastId: 'connection-toast' });
+            } else if (type === 'error') {
+                toast.error(message, { toastId: 'connection-toast' });
+            } else if (type === 'info') {
+                toast.info(message, { toastId: 'connection-toast' });
+            }
+        }
+    };
+
+    // Function to connect to WebSocket
+    const connectToWebSocket = () => {
+        if (isConnecting) return;
+        setIsConnecting(true);
+
+        // Close existing connection if any
+        if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+            wsRef.current.close();
+        }
+
+        // Make sure we have the correct WebSocket URL format
+        // Handle both formats: "camera1" or just "1"
+        const formattedId = cameraId.startsWith('camera') ? cameraId : `camera${cameraId}`;
+        // Make sure URL ends with /camera{id} not /{id}
+        const correctWsUrl = `${wsUrl}/camera${formattedId.replace('camera', '')}`;
+        
+        console.log(`Attempting to connect to WebSocket at: ${correctWsUrl}`);
+        
+        // Create new WebSocket
+        wsRef.current = new WebSocket(correctWsUrl);
         wsRef.current.binaryType = 'arraybuffer';
 
         wsRef.current.onopen = () => {
-            if (isComponentMounted) {
-                console.log('Connected to video stream');
-                setIsConnected(true);
+            console.log('Connected to video stream');
+            setIsConnected(true);
+            setIsConnecting(false);
+            reconnectAttemptsRef.current = 0;
+            setReconnectAttempts(0);
+
+            // Only show toast if this is the first successful connection after a restart
+            if (!connectionStabilized.current && !toastShownRef.current) {
+                showLimitedToast('Video stream connected');
+                toastShownRef.current = true;
+                
+                // After first successful connection, mark as stabilized after a delay
+                setTimeout(() => {
+                    connectionStabilized.current = true;
+                }, 5000);
             }
         };
 
-        wsRef.current.onclose = () => {
-            if (isComponentMounted) {
-                console.log('Disconnected from video stream');
-                setIsConnected(false);
+        wsRef.current.onclose = (event) => {
+            console.log(`WebSocket closed: ${event.code} ${event.reason}`);
+            
+            setIsConnected(false);
+            setIsConnecting(false);
+
+            // Cancella qualsiasi timer precedente
+            if (reconnectDelayTimerRef.current) {
+                clearTimeout(reconnectDelayTimerRef.current);
             }
+
+            // Programma un timer che mostrerà l'overlay solo se il ritardo è significativo
+            reconnectDelayTimerRef.current = setTimeout(() => {
+                // Controlla il tempo trascorso dall'ultimo frame
+                const timeSinceLastFrame = Date.now() - lastFrameTimeRef.current;
+                
+                // Se sono trascorsi più di X secondi dall'ultimo frame, mostra l'overlay
+                if (timeSinceLastFrame > RECONNECT_DISPLAY_DELAY) {
+                    setShowReconnecting(true);
+                }
+                
+                reconnectDelayTimerRef.current = null;
+            }, RECONNECT_DISPLAY_DELAY);
+            
+            if (isConnected && connectionStabilized.current) {
+                // Try to reconnect if not at max attempts
+                if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+                    reconnectAttemptsRef.current = reconnectAttemptsRef.current + 1;
+                    setReconnectAttempts(reconnectAttemptsRef.current);
+                    
+                    console.log(`WebSocket reconnecting (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`);
+                    
+                    // Exponential backoff: wait longer between attempts
+                    const delay = Math.min(RECONNECT_DELAY_BASE * Math.pow(1.5, reconnectAttemptsRef.current), 10000);
+                    
+                    if (reconnectTimeoutRef.current) {
+                        clearTimeout(reconnectTimeoutRef.current);
+                    }
+
+                    reconnectTimeoutRef.current = setTimeout(() => {
+                        //setIsConnecting(false); // Ensure we can connect again
+                        connectToWebSocket();
+                    }, delay);    
+                } else {
+                    console.log('Max reconnection attempts reached');
+                    showLimitedToast('Failed to connect to video stream. Please try refreshing the page.', 'error');
+                }
+            } else {
+                // Simple retry with fixed delay for initial connection
+                if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+                    reconnectAttemptsRef.current = reconnectAttemptsRef.current + 1;
+                    setReconnectAttempts(reconnectAttemptsRef.current);
+                    
+                    // Clear any existing reconnect timeout
+                    if (reconnectTimeoutRef.current) {
+                        clearTimeout(reconnectTimeoutRef.current);
+                    }
+                    
+                    reconnectTimeoutRef.current = setTimeout(() => {
+                        //setIsConnecting(false);
+                        connectToWebSocket();
+                    }, 2000); // Fixed 2-second delay for initial connection
+                }
+            }
+            
+            
+        };
+
+        wsRef.current.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            setIsConnecting(false);
         };
 
         wsRef.current.onmessage = (event) => {
-            if (!isComponentMounted) return;
+            lastFrameTimeRef.current = Date.now();
 
-            if (typeof event.data === 'string') {
-                // Handle JSON data (metrics)
-                const data = JSON.parse(event.data);
-                setDetails(prev => ({
-                    ...prev,
-                    peopleCount: data.detectedCount,
-                    mode: data.mode,
-                    fps: data.fps,
-                }));
-            } else {
-                // Handle binary data (video frame)
-                const blob = new Blob([event.data], { type: 'image/jpeg' });
-                const imageUrl = URL.createObjectURL(blob);
-                const img = new Image();
+            setIsConnected(true)
+            setIsConnecting(false)
 
-                img.onload = () => {
-                    const canvas = canvasRef.current;
-                    if (canvas) {
-                        setFrameSize({
-                            width: img.naturalWidth,
-                            height: img.naturalHeight
-                        });
-
-                        const ctx = canvas.getContext('2d');
-                        if (canvas.width !== img.width) {
-                            canvas.width = img.width;
-                            canvas.height = img.height;
-                        }
-                        ctx.drawImage(img, 0, 0);
-                        URL.revokeObjectURL(imageUrl);
-                    }
-                };
-                img.src = imageUrl;
+            // Se stava mostrando l'overlay di riconnessione, nascondilo immediatamente
+            if (showReconnecting) {
+                setShowReconnecting(false);
             }
-        };
 
+            // Cancella qualsiasi timer di reconnecting display
+            if (reconnectDelayTimerRef.current) {
+                clearTimeout(reconnectDelayTimerRef.current);
+                reconnectDelayTimerRef.current = null;
+            }
+
+            // Reset del contatore di tentativi quando riceviamo frame
+            if (reconnectAttemptsRef.current > 0) {
+                reconnectAttemptsRef.current = 0;
+                setReconnectAttempts(0);
+            }
+
+            // Handle binary data (video frame)
+            const blob = new Blob([event.data], { type: 'image/jpeg' });
+            const imageUrl = URL.createObjectURL(blob);
+            const img = new Image();
+
+            img.onload = () => {
+                const canvas = canvasRef.current;
+                if (canvas) {
+                    setFrameSize({
+                        width: img.naturalWidth,
+                        height: img.naturalHeight
+                    });
+
+                    const ctx = canvas.getContext('2d');
+                    if (canvas.width !== img.width) {
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                    }
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                    URL.revokeObjectURL(imageUrl);
+                }
+            };
+            img.src = imageUrl;
+        };
+    };
+
+    // Reset connection stabilization when camera changes
+    useEffect(() => {
+        connectionStabilized.current = false;
+        toastShownRef.current = false;
+
+        setIsConnected(false);
+
+        reconnectAttemptsRef.current = 0;
+        setReconnectAttempts(0);
+        // Clear any toast notifications
+        if (toast && toast.dismiss) {
+            toast.dismiss();
+        }
+    }, [cameraId]);
+
+    // WebSocket Connection Logic with delay
+    useEffect(() => {
+        console.log(`Camera ID changed to: ${cameraId}`);
+
+        const initDelay = setTimeout(() => {
+            connectToWebSocket();
+        }, 3000);
+        
         return () => {
-            isComponentMounted = false;
+            clearTimeout(initDelay);
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+            if (reconnectDelayTimerRef.current) {
+                clearTimeout(reconnectDelayTimerRef.current);
+            }
             if (wsRef.current) {
-                wsRef.current.close();
+                try {
+                    if (wsRef.current.readyState !== WebSocket.CLOSED) {
+                        wsRef.current.close();
+                    }
+                } catch (e) {
+                    console.error('Error closing WebSocket:', e);
+                }
                 wsRef.current = null;
             }
-        };
-    }, [wsUrl]);
+            if (toast && toast.dismiss) {
+                try {
+                    toast.dismiss();
+                } catch (e) {
+                    console.error('Error dismissing toasts:', e);
+                }
+                
+            }
+        }; 
+    }, [cameraId, wsUrl]);
 
     const convertToRealCoordinates = (canvasX, canvasY) => {
         const rect = canvasRef.current.getBoundingClientRect();
-        const scaleX = frameSize.width / rect.width;
-        const scaleY = frameSize.height / rect.height;
+
+        const realWidth = frameSize.width || canvasRef.current.width;
+        const realHeight = frameSize.height || canvasRef.current.height;
+
+        const scaleX = realWidth / rect.width;
+        const scaleY = realHeight / rect.height;
 
         return {
-            x: Math.round(canvasX * scaleX),
-            y: Math.round(canvasY * scaleY)
+            x: Math.max(0, Math.round(canvasX * scaleX)),
+            y: Math.max(0, Math.round(canvasY * scaleY))
         };
     };
 
@@ -206,6 +390,10 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
             setSelectedRegion(selectedRegion);
             setSelectionMode('none');
 
+            // Reset connection stabilization flag before restart
+            connectionStabilized.current = false;
+            toastShownRef.current = false;
+
             // Invio i dati al server
             try {
                 // Creo l'oggetto con solo i dati necessari
@@ -216,6 +404,11 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
                     height
                 };
 
+                // Clear existing toasts before showing new ones
+                if (toast && toast.dismiss) {
+                    toast.dismiss();
+                }
+
                 await sendWindowData(windowData);
 
                 // Aggiungo un indicatore visuale di successo
@@ -223,6 +416,25 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
                     ...prev,
                     lastWindowUpdate: 'success'
                 }));
+
+                // Close current connection before attempting to reconnect
+                if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+                    wsRef.current.close();
+                    wsRef.current = null;
+                }
+                
+                // Reset reconnect attempts when we're initiating a new connection
+                setReconnectAttempts(0);
+                
+                // Wait for backend to restart the C++ process
+                toast.info("Restarting video stream with new window settings...", { 
+                    toastId: 'restart-toast',
+                    autoClose: 5000
+                });
+                
+                // When we configure a new window, try reconnecting to the WebSocket
+                // after a short delay to give the C++ application time to restart
+                setTimeout(connectToWebSocket, 5000);
             } catch (error) {
                 // Aggiungo un indicatore visuale di errore
                 setDetails(prev => ({
@@ -247,12 +459,22 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
 
     const sendWindowData = async (windowData) => {
         try {
+            const factorX = 2.0; // Il backend ridimensiona a 0.5, quindi dobbiamo moltiplicare per 2
+            const factorY = 2.0;
+            
+            const adjustedData = {
+                x: Math.max(0, Math.round(windowData.x * factorX)),
+                y: Math.max(0, Math.round(windowData.y * factorY)),
+                width: Math.max(10, Math.round(windowData.width * factorX)),
+                height: Math.max(10, Math.round(windowData.height * factorY))
+            };
+
             const response = await fetch(`${API_BASE_URL}/window`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(windowData)
+                body: JSON.stringify(adjustedData)
             });
 
             if (!response.ok) {
@@ -260,13 +482,57 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
             }
 
             const result = await response.json();
-            toast.success('Window data sent successfully');
+            toast.success('Window data sent successfully', { 
+                toastId: 'window-data-toast',
+                autoClose: 3000
+            });
+
             return result;
         } catch (error) {
             console.error('Error sending window data:', error);
-            toast.error('Failed to send window data');
+            toast.error('Failed to send window data', { 
+                toastId: 'window-data-error-toast' 
+            });
             throw error;
         }
+    };
+
+    const handleReconnect = () => {
+        // Don't reconnect if already connecting
+        if (isConnecting) return;
+
+        // Close the current connection if it exists
+        if (wsRef.current) {
+            wsRef.current.close();
+            wsRef.current = null;
+        }
+        
+        // Reset the reconnect attempts
+        reconnectAttemptsRef.current = 0;
+        setReconnectAttempts(0);
+        setIsConnected(false);
+
+        setIsConnecting(false);
+
+        // Reset connection stabilization flag
+        connectionStabilized.current = false;
+        toastShownRef.current = false;
+
+        // Clear existing toasts
+        if (toast && toast.dismiss) {
+            toast.dismiss();
+        }
+
+        // Show reconnecting toast
+        toast.info('Reconnecting to camera feed...', { 
+            toastId: 'reconnect-toast',
+            autoClose: 3000
+        });
+        
+        // Try to connect again
+        setTimeout(() => {
+            connectToWebSocket();
+        }, 1000);
     };
 
     return (
@@ -314,7 +580,19 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
                                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                                 Live
                             </div>
-                        ) : null}
+                        ) : (
+                            <div className="flex items-center gap-2 text-yellow-500 bg-yellow-50 px-3 py-1 rounded-full">
+                                <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                                Connecting{reconnectAttempts > 0 ? ` (${reconnectAttempts})` : ''}
+                            </div>
+                        )}
+                        <button 
+                            onClick={handleReconnect}
+                            className="bg-blue-500 text-white px-3 py-1 rounded-full hover:bg-blue-600"
+                            disabled={isConnecting}
+                        >
+                            {isConnecting ? 'Connecting...' : 'Reconnect'}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -350,6 +628,17 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
                             ref={selectionRef}
                             className="absolute border-2 border-blue-500 bg-blue-500/20 hidden pointer-events-none"
                         />
+
+                        {(showReconnecting && reconnectAttempts > 0) && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                                <div className="flex flex-col items-center space-y-4">
+                                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                    <p className="text-white text-lg font-semibold">
+                                        {`Reconnecting (Attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -359,7 +648,7 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
                             <>
                                 <h3 className="font-semibold text-blue-700 mb-2">Selected Start Point</h3>
                                 <div className="text-sm">
-                                    <p>Position: {startPoint.x.toFixed(1)}% x {startPoint.y.toFixed(1)}%</p>
+                                    <p>Position: {startPoint.x.toFixed(1)} x {startPoint.y.toFixed(1)}</p>
                                 </div>
                             </>
                         )}
@@ -402,47 +691,8 @@ const VideoFeed = ({ cameraId, details, setDetails, wsUrl }) => {
                             <GalleryHorizontalEnd className="w-5 h-5"/>
                             <h3 className="font-semibold">Frame per second</h3>
                         </div>
-                        <p className="text-3xl font-bold mt-2">{details.fps}</p>
+                        <p className="text-3xl font-bold mt-2">{details.fps.toFixed(1)}</p>
                         <p className="text-sm text-gray-500 mt-1">Video stream fps</p>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-lg shadow border hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-2 text-blue-600">
-                            <CheckCircle className="w-5 h-5"/>
-                            <h3 className="font-semibold">Services Status</h3>
-                        </div>
-                        <div className="mt-2 space-y-1">
-                            <div className="flex items-center gap-2">
-                                {details.serviceStatus.subscribe === 'success' ? (
-                                    <CheckCircle className="w-4 h-4 text-green-500" />
-                                ) : details.serviceStatus.subscribe === 'failure' ? (
-                                    <XCircle className="w-4 h-4 text-red-500" />
-                                ) : (
-                                    <div className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
-                                )}
-                                <span className="text-sm">Subscribe</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {details.serviceStatus.input === 'success' ? (
-                                    <CheckCircle className="w-4 h-4 text-green-500" />
-                                ) : details.serviceStatus.input === 'failure' ? (
-                                    <XCircle className="w-4 h-4 text-red-500" />
-                                ) : (
-                                    <div className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
-                                )}
-                                <span className="text-sm">Input</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {details.serviceStatus.config === 'success' ? (
-                                    <CheckCircle className="w-4 h-4 text-green-500" />
-                                ) : details.serviceStatus.config === 'failure' ? (
-                                    <XCircle className="w-4 h-4 text-red-500" />
-                                ) : (
-                                    <div className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
-                                )}
-                                <span className="text-sm">Config</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
