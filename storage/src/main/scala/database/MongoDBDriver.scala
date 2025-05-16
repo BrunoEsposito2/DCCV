@@ -1,12 +1,11 @@
 package database
 
 import com.mongodb.client.model.{Filters, UpdateOptions, Updates}
-import com.mongodb.{ConnectionString, MongoClientSettings, MongoCredential, MongoException, ServerAddress, ServerApi, ServerApiVersion}
+import com.mongodb.{ConnectionString, MongoClientSettings, MongoCredential, MongoException, ServerApi, ServerApiVersion}
 import com.mongodb.client.{MongoClient, MongoClients, MongoCollection, MongoDatabase}
 import org.bson.{BsonDocument, BsonInt64, BsonObjectId, Document}
 import org.bson.conversions.Bson
 import org.bson.types.ObjectId
-import scala.jdk.CollectionConverters.*
 
 import scala.util.Properties
 import scala.collection.mutable.ListBuffer
@@ -27,7 +26,7 @@ private class MongoDBDriver:
 
   def connect(): Option[MongoCollection[Document]] =
     val settings: MongoClientSettings = MongoClientSettings.builder()
-      applyConnectionString(ConnectionString(scala.sys.env.getOrElse("DATABASE_URI", "mongodb://localhost:27017/")))
+      .applyConnectionString(ConnectionString(scala.sys.env.getOrElse("DATABASE_URI", "mongodb://localhost:27017/")))
       .credential(credential)
       .build()
 
