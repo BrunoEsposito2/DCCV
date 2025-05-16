@@ -27,7 +27,7 @@ private class MongoDBDriver:
 
   def connect(): Option[MongoCollection[Document]] =
     val settings: MongoClientSettings = MongoClientSettings.builder()
-      .applyToClusterSettings(_.hosts(List(new ServerAddress("mongodb", 27017)).asJava))
+      applyConnectionString(ConnectionString(scala.sys.env.getOrElse("DATABASE_URI", "mongodb://localhost:27017/")))
       .credential(credential)
       .build()
 
