@@ -3,6 +3,7 @@ package router
 import akka.actor.typed.ActorRef
 import io.vertx.core.{Future, Vertx}
 import io.vertx.core.json.JsonObject
+import io.vertx.core.json.JsonArray
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.handler.{BodyHandler, CorsHandler}
 import io.vertx.core.http.{HttpMethod, HttpServer}
@@ -23,8 +24,19 @@ private class VertxRouter:
   private var inputStatus: String = "pending"
   private var configStatus: String = "pending"
   private var cameraMap: Map[String, ActorRef[Message]] = Map.empty
+  private var cameraNames: Map[String, String] = Map.empty
   private var serverRef: Option[ActorRef[Message]] = None
   private var windowData: Map[String, Double] = Map.empty
+
+  private var detectedCount: Int = 0
+  private var detectionMode: String = "Initializing..."
+  private var frameRate: Double = 0.0
+
+  def updateDetectionData(count: Int, mode: String, fps: Double): Unit = {
+    detectedCount = count
+    detectionMode = mode
+    frameRate = fps
+  }
 
   def initRoutes(): Future[HttpServer] =
     val router = Router.router(vertx)
@@ -75,7 +87,7 @@ private class VertxRouter:
             .encode())
 
         if (serverRef.nonEmpty)
-          cameraMap(currentCameraId) ! SwitchToCamera(serverRef.get)
+          serverRef.get ! SwitchToCamera(cameraMap(currentCameraId))
       } catch {
         case e: Exception =>
           ctx.response()
@@ -98,25 +110,25 @@ private class VertxRouter:
 
         val requiredFields = List("x", "y", "width", "height")
         if (!requiredFields.forall(body.containsKey)) {
-          throw new IllegalArgumentException("Missing required fields")
+          windowData = Map.empty
+        } else {
+            val x = body.getInteger("x")
+            val y = body.getInteger("y")
+            val width = body.getInteger("width")
+            val height = body.getInteger("height")
+
+            if (x < 0 || y < 0 || width <= 0 || height <= 0) {
+              throw new IllegalArgumentException("Invalid coordinates or dimensions")
+            }
+
+            windowData = Map(
+              "startX" -> x.toDouble,
+              "startY" -> y.toDouble,
+              "width" -> width.toDouble,
+              "height" -> height.toDouble
+            )
         }
-
-        val x = body.getInteger("x")
-        val y = body.getInteger("y")
-        val width = body.getInteger("width")
-        val height = body.getInteger("height")
-
-        if (x < 0 || y < 0 || width <= 0 || height <= 0) {
-          throw new IllegalArgumentException("Invalid coordinates or dimensions")
-        }
-
-        windowData = Map(
-          "startX" -> x.toDouble,
-          "startY" -> y.toDouble,
-          "width" -> width.toDouble,
-          "height" -> height.toDouble
-        )
-
+        
         response
           .end(new JsonObject()
             .put("status", "approved")
@@ -125,7 +137,7 @@ private class VertxRouter:
             handler.succeeded() match
               case _ =>
                 if (serverRef.nonEmpty)
-                  serverRef.get ! ForwardConfigData(cameraMap(currentCameraId), windowData)
+                  serverRef.get ! ForwardConfigData(cameraMap(currentCameraId), windowData, currentCameraId)
           }
       } catch {
         case e: Exception =>
@@ -139,6 +151,17 @@ private class VertxRouter:
     // Endpoint per le notifiche di stato
     router.get("/status").handler(ctx => {
       try {
+        val camerasArray = new JsonArray()
+
+        cameraMap.foreach { case (cameraId, _) =>
+          val cameraObj = new JsonObject()
+            .put("id", cameraId)
+            .put("name", cameraNames.getOrElse(cameraId, getFriendlyNameForCamera(cameraId)))
+            .put("location", getLocationForCamera(cameraId))
+
+          camerasArray.add(cameraObj)
+        }
+        
         ctx.response()
           .putHeader("Content-Type", "application/json")
           .putHeader("Access-Control-Allow-Origin", "*")
@@ -146,6 +169,11 @@ private class VertxRouter:
             .put("subscribe", subscribeStatus)
             .put("input", inputStatus)
             .put("config", configStatus)
+            .put("currentCamera", currentCameraId)
+            .put("cameras", camerasArray)
+            .put("peopleCount", detectedCount)  // campi aggiunti
+            .put("mode", detectionMode)
+            .put("fps", frameRate)
             .encode())
       } catch {
         case e: Exception =>
@@ -168,6 +196,21 @@ private class VertxRouter:
       }
     })
 
+  private def getFriendlyNameForCamera(cameraId: String): String =
+    cameraId match {
+      case "camera1" => "Main Entrance"
+      case "camera2" => "Parking Area"
+      case "camera3" => "Living Room"
+      case _ => s"Camera ${cameraId.substring(6)}"
+    }
+
+  private def getLocationForCamera(cameraId: String): String =
+    cameraId match {
+      case "camera1" => "Front"
+      case "camera2" => "Exterior"
+      case "camera3" => "Indoor"
+      case _ => "General"
+    }
   def setServerRef(ref: ActorRef[Message]): Unit = serverRef = Option(ref)
   def getCameraMap: Map[String, ActorRef[Message]] = cameraMap
   def getCurrentCameraId: String = currentCameraId
