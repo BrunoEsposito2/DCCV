@@ -12,7 +12,13 @@ include(
     ":presentation",
     ":storage",
     ":interface",
-    "interface:client",
-    "interface:server",
-    "inteface:cli",
-    ":distribution")
+    ":interface:client",
+    ":interface:server",
+    ":distribution"
+)
+
+include(
+    ":distribution:utilitynode",
+    ":distribution:usernode",
+    ":distribution:cameranode"
+)
