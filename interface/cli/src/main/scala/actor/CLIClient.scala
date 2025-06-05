@@ -28,9 +28,27 @@ import message.{CameraMap, ConfigServiceSuccess, Input, InputServiceSuccess, Mes
 import parser.CLIMessage
 import utils.{ChildStatuses, Info}
 
+/**
+ * Command the CLIClient to hide the CameraManager's output, changing its consumer function to bs: ByteString => {} via a
+ * ConfigureClientSink message.
+  */
 case class HideStream() extends OutputServiceMsg
+
+/**
+ * Command the CLIClient to show the CameraManager's output, changing its consumer function to bs: ByteString => println(bs) via a
+ * ConfigureClientSink message.
+ */
 case class ShowStream() extends OutputServiceMsg
+
+/**
+ * Command the CLIClient to send to the CameraManager to which the client is subscribed a string.
+ * @param input is the string to send to the CameraManager, that will be processed by its CV Process as a keyboard input.
+ */
 case class SendInput(input: String) extends OutputServiceMsg
+
+/**
+ * Command the CLIClient actor to kill itself.
+ */
 case class Terminate() extends PoisonPill with OutputServiceMsg
 
 object CLIClient:
