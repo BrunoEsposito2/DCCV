@@ -35,6 +35,10 @@ import scala.collection.immutable.Queue
 
 private type Ref = ActorRef[Message]
 
+/**
+ * Message received by a GenericClient to change the consumer function of its sink.
+ * @param function is the ByteString => Unit side effect function triggered each time a CameraManager's source emits an output.
+ */
 case class ConfigureClientSink(function: ByteString => Unit) extends OutputServiceMsg
 
 object GenericClient:
