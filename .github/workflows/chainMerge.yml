@@ -60,7 +60,7 @@ jobs:
         echo "Current branch: $current_branch"
 
         declare -A branches
-        branches=( ["domain"]="application" ["application"]="presentation" ["presentation"]="storage" ["storage"]="interface" ["interface"]="distribution" ["distribution"]="")
+        branches=( ["domain"]="application" ["application"]="presentation" ["presentation"]="storage" ["storage"]="interface" ["interface"]="distribution" ["distribution"]="main")
 
         next_branch="${branches[$current_branch]}"
         echo "Next branch: $next_branch"
@@ -127,9 +127,29 @@ jobs:
 
         # Checkout the next branch again to ensure it's up to date
         git checkout $next_branch
+        git pull origin $next_branch
 
-        # Merge the current branch into it again to ensure it's up to date
-        git merge --no-verify --no-ff $current_branch
-
-        # Push the changes to the next branch
-        git push origin $next_branch
+        # Attempt merge with conflict resolution
+        if git merge --no-verify --no-ff $current_branch; then
+          echo "Merge successful"
+          git push origin $next_branch
+        else
+          echo "Merge conflict detected. Attempting auto-resolution..."
+          
+          # For settings.gradle.kts conflicts, prefer the current branch version
+          if [ -f "settings.gradle.kts" ] && git status --porcelain | grep -q "settings.gradle.kts"; then
+            git checkout $current_branch -- settings.gradle.kts
+            git add settings.gradle.kts
+            echo "Auto-resolved settings.gradle.kts conflict using $current_branch version"
+          fi
+          
+          # Check if all conflicts are resolved
+          if git status --porcelain | grep -q "^UU\|^AA\|^DD"; then
+            echo "❌ Unable to auto-resolve all conflicts"
+            git merge --abort
+            exit 1
+          else
+            git commit -m "resolve: auto-merge $current_branch into $next_branch"
+            git push origin $next_branch
+          fi
+        fi
