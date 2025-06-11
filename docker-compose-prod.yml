@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # Camera Node - Computer Vision Processing
+  cameranode:
+    image: brunoesposito2/dccv-cameranode:latest
+    ports:
+      - "2553:2553"  # Akka cluster
+      - "5555:5555"  # WebSocket video stream
+      - "8080:8080"  # Camera manager TCP
+    environment:
+      - JOIN_TOKEN=${JOIN_TOKEN}
+      - MANAGER_IP=${MANAGER_IP}
+    volumes:
+      - cameranode-certs:/certs
+    networks:
+      - swarm-network
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  # GUI Frontend - React Interface
+  guifrontend:
+    image: brunoesposito2/dccv-guifrontend:latest
+    ports:
+      - "3000:3000"  # React dev server
+    environment:
+      - JOIN_TOKEN=${JOIN_TOKEN}
+      - MANAGER_IP=${MANAGER_IP}
+      - DOCKER_TLS_CERTDIR=/certs
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - REACT_APP_API_BASE_URL=http://localhost:4000
+      - REACT_APP_VIDEO_WS_URL=ws://localhost:5555
+    volumes:
+      - guifrontend-certs:/certs
+      - guifrontend-data:/var/lib/docker
+    networks:
+      - swarm-network
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  # GUI Backend - Akka HTTP REST API
+  guibackend:
+    image: brunoesposito2/dccv-guibackend:latest
+    command: /bin/bash -c "./distribution/usernode/entrypoint.sh"
+    ports:
+      - "2551:2551"  # Akka cluster
+      - "4000:4000"  # HTTP REST API
+    environment:
+      - JOIN_TOKEN=${JOIN_TOKEN}
+      - MANAGER_IP=${MANAGER_IP}
+    volumes:
+      - guibackend-certs:/certs
+    networks:
+      - swarm-network
+    restart: always
+    depends_on:
+      - mongodb
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  # Utility Node - Cluster Coordination & Storage
+  utilitynode:
+    image: brunoesposito2/dccv-utilitynode:latest
+    command: /bin/bash -c "./distribution/utilitynode/entrypoint.sh"
+    ports:
+      - "2552:2552"  # Akka cluster
+    environment:
+      - JOIN_TOKEN=${JOIN_TOKEN}
+      - MANAGER_IP=${MANAGER_IP}
+      - DATABASE_URI=mongodb://APP-USERNAME:APP-PASSWORD@mongodb:27017/DCCV
+    networks:
+      - swarm-network
+    depends_on:
+      - mongodb
+    restart: always
+    volumes:
+      - utility-certs:/certs
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  # MongoDB - Data Storage
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: APP-USERNAME
+      MONGO_INITDB_ROOT_PASSWORD: APP-PASSWORD
+      MONGO_INITDB_DATABASE: DCCV
+      DOCKER_TLS_VERIFY: "0"
+    volumes:
+      - mongo:/data/db
+      - ./distribution/utilitynode/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - swarm-network
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+
+volumes:
+  guifrontend-certs:
+  guifrontend-data:
+  guibackend-certs:
+  cameranode-certs:
+  utility-certs:
+  mongo:
+
+networks:
+  swarm-network:
+    driver: overlay
+    attachable: true
