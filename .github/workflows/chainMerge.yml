@@ -1,0 +1,135 @@
+name: Chain Merge and Test Workflow
+
+on:
+  push:
+    branches:
+      - 'domain'
+      - 'application'
+      - 'presentation'
+      - 'storage'
+      - 'interface'
+      - 'distribution'
+    paths-ignore:
+          - 'settings.gradle.*'
+
+jobs:
+  chain-merge-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:4.4.6
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: admin
+          MONGO_INITDB_DATABASE: DCCV
+          MONGODB_USER: APP-USERNAME
+          MONGODB_PASSWORD: APP-PASSWORD
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd mongo
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4.1.5
+      if: inputs.token == ''
+      with:
+        fetch-depth: 0
+        submodules: recursive
+        token: ${{ secrets.DCCV_TOKEN }}
+
+    - name: Configure git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+        echo "Git configuration:"
+        git config --list
+
+    - name: Fetch all branches
+      run: git fetch --all
+
+    - name: Determine next branch
+      id: determine-next
+      run: |
+        current_branch="${GITHUB_REF#refs/heads/}"
+        echo "Current branch: $current_branch"
+
+        declare -A branches
+        branches=( ["domain"]="application" ["application"]="presentation" ["presentation"]="storage" ["storage"]="interface" ["interface"]="distribution" ["distribution"]="main")
+
+        next_branch="${branches[$current_branch]}"
+        echo "Next branch: $next_branch"
+
+        echo "::set-output name=next_branch::$next_branch"
+
+    - name: Set up JDK 17
+      if: steps.determine-next.outputs.next_branch != ''
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'corretto'
+        java-version: '17'
+
+    - name: Set execute permissions for Gradle wrapper
+      run: chmod +x ./gradlew
+
+    - name: Install mongosh
+      run: |
+        sudo apt-get install gnupg
+        wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-7.0.asc
+        echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+        sudo apt-get update
+        sudo apt-get install -y mongodb-mongosh
+        mongosh --version
+
+    - name: Initalize MongoDB
+      run: |
+        mongosh --host localhost:27017 -u admin -p admin --authenticationDatabase admin <<EOF
+          use DCCV;
+          db.createUser({
+            user: 'APP-USERNAME',
+            pwd: 'APP-PASSWORD',
+            roles: [
+              { role: 'readWrite', db: 'DCCV' },
+              { role: 'userAdmin', db: 'DCCV' }
+            ]
+          });
+          db.createCollection('tracking');
+          db.tracking.insertOne({});
+          db.auth('APP-USERNAME', 'APP-PASSWORD');
+        EOF
+
+    - name: Run Domain Branch Gradle Test
+      if: github.ref == 'refs/heads/domain'
+      run: |
+        docker build -t opencv-build-image ./domain
+        docker run -v ${{ github.workspace }}:/DCCV \
+           --name ubuntu-opencv_build-container \
+           --rm opencv-build-image \
+           /bin/bash -c "GRADLE_USER_HOME=/tmp/.gradle ./gradlew test"
+
+    - name: Run Gradle tests
+      if: steps.determine-next.outputs.next_branch != '' && github.ref != 'refs/heads/domain'
+      run: |
+        subproject="${GITHUB_REF#refs/heads/}"
+        ./gradlew ${subproject}:test # --info # for debug
+
+    - name: Push changes to next branch if tests pass
+      if: success() && steps.determine-next.outputs.next_branch != ''
+      run: |
+        current_branch="${GITHUB_REF#refs/heads/}"
+        next_branch="${{ steps.determine-next.outputs.next_branch }}"
+        echo "Tests passed. Merging $current_branch into $next_branch"
+
+        # Checkout the next branch again to ensure it's up to date
+        git checkout $next_branch
+
+        # Merge the current branch into it again to ensure it's up to date
+        git merge --no-verify --no-ff $current_branch
+
+        # Push the changes to the next branch
+        git push origin $next_branch
