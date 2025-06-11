@@ -418,7 +418,7 @@ jobs:
         sudo chmod +x /usr/local/bin/yq
 
     - name: Download release artifacts for documentation
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: release-artifacts
         path: release-artifacts/
@@ -519,7 +519,7 @@ jobs:
     
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: release-artifacts
         path: release-artifacts/
@@ -676,7 +676,7 @@ jobs:
         ref: main
           
     - name: Download API documentation
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: api-docs
         path: api/
@@ -691,7 +691,7 @@ jobs:
         destination: ./_site
         
     - name: Upload Pages artifact
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v4
       
     - name: Deploy to GitHub Pages
       id: deployment
