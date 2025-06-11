@@ -1,0 +1,755 @@
+name: Semantic Release Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  DOCKER_USERNAME: brunoesposito2
+
+jobs:
+  # 1. Determinazione della versione e creazione del tag
+  version:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+      previous_tag: ${{ steps.version.outputs.previous_tag }}
+      release_notes: ${{ steps.release_notes.outputs.release_notes }}
+      is_release: ${{ steps.version.outputs.is_release }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.DCCV_TOKEN }}
+        
+    - name: Set up Git
+      run: |
+        git config --local user.name "github-actions[bot]"
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Determine version increment
+      id: version
+      run: |
+        # Get the latest version tag
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        echo "Latest tag: $LATEST_TAG"
+        
+        # Strip the 'v' prefix
+        LATEST_VERSION=${LATEST_TAG#v}
+        
+        # Split version into components
+        IFS='.' read -r -a VERSION_PARTS <<< "$LATEST_VERSION"
+        MAJOR=${VERSION_PARTS[0]:-0}
+        MINOR=${VERSION_PARTS[1]:-0}
+        PATCH=${VERSION_PARTS[2]:-0}
+        
+        # Get all commit messages since the last tag
+        echo "Analyzing commits since tag $LATEST_TAG"
+        COMMITS=$(git log $LATEST_TAG..HEAD --pretty=format:"%s")
+        echo "Commits found: $COMMITS"
+        
+        # Initialize flags
+        NEED_MAJOR=false
+        NEED_MINOR=false
+        NEED_PATCH=false
+        
+        # Loop through each commit message
+        echo "Analyzing commit types..."
+        while IFS= read -r commit; do
+          echo "Analyzing: $commit"
+          
+          # Check for breaking changes (with ! or BREAKING CHANGE)
+          if [[ $commit == feat*!:* || $commit == fix*!:* || $commit == refactor*!:* || $commit == perf*!:* || $commit == *"BREAKING CHANGE"* ]]; then
+            echo "  - Breaking change detected"
+            NEED_MAJOR=true
+          # Check for feature commits
+          elif [[ $commit == feat:* ]] || [[ $commit == feat\(*\):* ]]; then
+            echo "  - Feature detected"
+            NEED_MINOR=true
+          # Check for fix commits
+          elif [[ $commit == fix:* ]] || [[ $commit == fix\(*\):* ]];; then
+            echo "  - Fix detected"
+            NEED_PATCH=true
+          fi
+        done <<< "$COMMITS"
+        
+        # Determine the final version increment
+        if [ "$NEED_MAJOR" = true ]; then
+          echo "Breaking changes found - incrementing MAJOR version"
+          MAJOR=$((MAJOR + 1))
+          MINOR=0
+          PATCH=0
+        elif [ "$NEED_MINOR" = true ]; then
+          echo "Features found - incrementing MINOR version"
+          MINOR=$((MINOR + 1))
+          PATCH=0
+        elif [ "$NEED_PATCH" = true ]; then
+          echo "Fixes or other changes found - incrementing PATCH version"
+          PATCH=$((PATCH + 1))
+        fi
+        
+        NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "previous_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+        echo "New version will be: v$NEW_VERSION"
+
+        if [ "$NEED_MAJOR" = true ] || [ "$NEED_MINOR" = true ] || [ "$NEED_PATCH" = true ]; then
+          echo "is_release=true" >> $GITHUB_OUTPUT
+        else
+          echo "is_release=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create Release Notes
+      id: release_notes
+      run: |
+        echo "Generating release notes..."
+        
+        # Categorize commits
+        FEAT_COMMITS=""
+        FIX_COMMITS=""
+        BREAKING_COMMITS=""
+        OTHER_COMMITS=""
+        
+        if [ "${{ steps.version.outputs.previous_tag }}" = "v0.0.0" ] || ! git tag | grep -q "${{ steps.version.outputs.previous_tag }}"; then
+          COMMITS=$(git log --pretty=format:"%s")
+        else
+          COMMITS=$(git log ${{ steps.version.outputs.previous_tag }}..HEAD --pretty=format:"%s")
+        fi
+        
+        while IFS= read -r commit; do
+          [ -z "$commit" ] && continue
+          
+          # Check for breaking changes
+          if [[ $commit == *"!"*":"* ]] || [[ $commit == *"BREAKING CHANGE"* ]]; then
+            BREAKING_COMMITS="$BREAKING_COMMITS\n- $commit"
+          # Check for features
+          elif [[ $commit == feat:* ]] || [[ $commit == feat\(*\):* ]]; then
+            clean_commit=$(echo "$commit" | sed 's/^feat[^:]*: //')
+            FEAT_COMMITS="$FEAT_COMMITS\n- $clean_commit"
+          # Check for fixes
+          elif [[ $commit == fix:* ]] || [[ $commit == fix\(*\):* ]]; then
+            clean_commit=$(echo "$commit" | sed 's/^fix[^:]*: //')
+            FIX_COMMITS="$FIX_COMMITS\n- $clean_commit"
+          fi
+        done <<< "$COMMITS"
+        
+        # Create release notes
+        NOTES="# Release v${{ steps.version.outputs.new_version }}
+
+        ## 🎓 Distributed Cluster for Computer Vision (DCCV)
+
+        Project implementing a distributed computer vision cluster using Akka actors and Docker Swarm.
+
+        ## 📦 Docker Images
+
+        This release includes the following Docker images:
+        - \`${{ env.DOCKER_USERNAME }}/dccv-cameranode:${{ steps.version.outputs.new_version }}\`
+        - \`${{ env.DOCKER_USERNAME }}/dccv-guibackend:${{ steps.version.outputs.new_version }}\`
+        - \`${{ env.DOCKER_USERNAME }}/dccv-guifrontend:${{ steps.version.outputs.new_version }}\`
+        - \`${{ env.DOCKER_USERNAME }}/dccv-utilitynode:${{ steps.version.outputs.new_version }}\`
+
+        ## 🔧 Quick Deployment
+
+        \`\`\`bash
+        # Download the deployment script
+        curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.new_version }}/deploy-dccv.sh -o deploy-dccv.sh
+        chmod +x deploy-dccv.sh
+
+        # Run the script with the specified version
+        ./deploy-dccv.sh ${{ steps.version.outputs.new_version }}
+        \`\`\`
+
+        ## 📋 Changes"
+        
+        if [ -n "$BREAKING_COMMITS" ]; then
+          NOTES="$NOTES
+
+        ### ⚠️ BREAKING CHANGES
+        $(echo -e "$BREAKING_COMMITS")"
+        fi
+        
+        if [ -n "$FEAT_COMMITS" ]; then
+          NOTES="$NOTES
+
+        ### ✨ New Features
+        $(echo -e "$FEAT_COMMITS")"
+        fi
+        
+        if [ -n "$FIX_COMMITS" ]; then
+          NOTES="$NOTES
+
+        ### 🐛 Bug Fixes
+        $(echo -e "$FIX_COMMITS")"
+        fi
+        
+        NOTES="$NOTES
+
+        ## 🏗️ System Architecture
+
+        - **Camera Node**: C++ OpenCV processing with WebSocket streaming
+        - **GUI Backend**: Scala/Akka HTTP REST API and actor coordination  
+        - **GUI Frontend**: React interface for camera management and monitoring
+        - **Utility Node**: MongoDB storage and cluster supervision
+        - **Domain Layer**: Core computer vision algorithms and video processing
+
+        ## Main Features
+
+        - **Akka Actor Model**: Distributed actor systems with clustering
+        - **Computer Vision**: Real-time face/body detection with OpenCV
+        - **Container Orchestration**: Docker Swarm deployment
+        - **Stream Processing**: Video streaming with WebSocket
+        - **CI/CD Pipeline**: Automated testing and deployment
+
+        [Full Changelog](https://github.com/${{ github.repository }}/compare/${{ steps.version.outputs.previous_tag }}...v${{ steps.version.outputs.new_version }})"
+        
+        # Save notes to file for GitHub release
+        echo "$NOTES" > release_notes.md
+        
+        # Also output for next step (escape newlines for GitHub Actions)
+        echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+        echo "$NOTES" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+  # 2. Preparazione degli artifact di release
+  prepare-artifacts:
+    runs-on: ubuntu-latest
+    needs: version
+    if: needs.version.outputs.is_release == 'true'
+    outputs:
+      artifacts_ready: ${{ steps.artifacts.outputs.ready }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Copy release files from repository
+      run: |
+        mkdir -p release-artifacts
+        
+        # Copy files from repository
+        cp deploy-dccv.sh release-artifacts/
+        cp docker-compose-prod.yml release-artifacts/
+        
+        # Make deploy script executable
+        chmod +x release-artifacts/deploy-dccv.sh
+
+    - name: Create Release README
+      run: |
+        VERSION=${{ needs.version.outputs.new_version }}
+        
+        cat > release-artifacts/README.md << EOF
+        # DCCV Release v${VERSION}
+        
+        **Distributed Cluster for Computer Vision** - University project implementing a distributed computer vision system using Akka actors and Docker Swarm.
+        
+        ## 🚀 Quick Start
+        
+        \`\`\`bash
+        # Download and run deployment script
+        curl -sSL https://github.com/${{ github.repository }}/releases/download/v${VERSION}/deploy-dccv.sh -o deploy-dccv.sh
+        chmod +x deploy-dccv.sh
+        ./deploy-dccv.sh ${VERSION}
+        \`\`\`
+        
+        ## 🏗️ System Components
+        
+        | Service | Purpose | Port(s) | Technology |
+        |---------|---------|---------|------------|
+        | **Camera Node** | Computer vision processing | 2553, 5555, 8080 | C++/OpenCV + Akka |
+        | **GUI Frontend** | Web interface | 3000 | React |
+        | **GUI Backend** | REST API & coordination | 2551, 4000 | Scala/Vertx |
+        | **Utility Node** | Cluster supervision | 2552 | Scala/Akka |
+        | **MongoDB** | Data storage | 27017 | MongoDB |
+        
+        ## 📦 Docker Images
+        
+        \`\`\`
+        ${{ env.DOCKER_USERNAME }}/dccv-cameranode:${VERSION}
+        ${{ env.DOCKER_USERNAME }}/dccv-guifrontend:${VERSION}
+        ${{ env.DOCKER_USERNAME }}/dccv-guibackend:${VERSION}
+        ${{ env.DOCKER_USERNAME }}/dccv-utilitynode:${VERSION}
+        \`\`\`
+        
+        ## 🔧 Manual Deployment
+        
+        1. **Initialize Docker Swarm:**
+        \`\`\`bash
+        docker swarm init
+        export JOIN_TOKEN=\$(docker swarm join-token -q worker)
+        export MANAGER_IP=\$(docker node inspect self --format '{{.Status.Addr}}')
+        \`\`\`
+        
+        2. **Create overlay network:**
+        \`\`\`bash
+        docker network create --driver overlay --attachable swarm-network
+        \`\`\`
+        
+        3. **Deploy stack:**
+        \`\`\`bash
+        docker stack deploy -c docker-compose-prod.yml dccv
+        \`\`\`
+        
+        ## 🌐 Access Points
+        
+        - **Web Interface**: http://localhost:3000
+        - **REST API**: http://localhost:4000
+        - **Video Stream**: ws://localhost:5555
+        - **Database**: mongodb://localhost:27017
+        
+        ## 📊 Monitoring
+        
+        \`\`\`bash
+        # View all services
+        docker stack services dccv
+        
+        # Check service logs
+        docker service logs -f dccv_cameranode
+        docker service logs -f dccv_guibackend
+        docker service logs -f dccv_guifrontend
+        docker service logs -f dccv_utilitynode
+        
+        # Monitor cluster nodes
+        docker node ls
+        \`\`\`
+        
+        ## 🏫 Academic Context
+    
+        - **Distributed Systems**: Akka actor clustering across multiple nodes
+        - **Computer Vision**: Real-time face/body detection with OpenCV
+        - **Stream Processing**: WebSocket video streaming
+        - **Container Orchestration**: Docker Swarm deployment
+        - **Modern Web Development**: React frontend with REST API
+        
+        ## 🔧 Development Setup
+        
+        For development deployment, use the docker-compose files in the distribution directory with volume mounts for live code updates.
+        The 'dev-utils.sh' script can be used to start the development environment with all services running locally. It also provides commands to build and run each service in development mode.
+        
+        ## 📝 License
+        
+        GNU Lesser General Public License v3.0 - See LICENSE file for details.
+        EOF
+
+    - name: Upload artifacts
+      id: artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-artifacts
+        path: release-artifacts/
+        retention-days: 7
+
+    - name: Set ready flag
+      run: echo "ready=true" >> $GITHUB_OUTPUT
+
+  # 5. Generazione documentazione API
+  generate-docs:
+    runs-on: ubuntu-latest
+    needs: [version, prepare-artifacts]
+    if: needs.version.outputs.is_release == 'true'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'corretto'
+        java-version: '17'
+
+    - name: Set execute permissions for Gradle wrapper
+      run: chmod +x ./gradlew
+
+    - name: Generate API Documentation
+      run: |
+        # Install required tools
+        npm install --no-audit --no-fund swagger-ui-dist js-yaml
+        
+        VERSION=${{ needs.version.outputs.new_version }}
+        MAJOR_VERSION=$(echo $VERSION | cut -d. -f1)
+        
+        # Setup documentation structure
+        mkdir -p api/v${MAJOR_VERSION}/{scala,rest,docker}
+        
+        # Generate Scaladoc for modules with API
+        ./gradlew \
+          application:scaladoc \
+          presentation:scaladoc \
+          interface:cli:scaladoc \
+          -PincludePackages="actor,message"
+        
+        # Copy Scaladoc
+        for module in application presentation interface/server; do
+          module_name=$(basename $module)
+          if [ -d "$module/build/docs/scaladoc" ]; then
+            cp -r $module/build/docs/scaladoc/* api/v${MAJOR_VERSION}/scala/${module_name}/
+          fi
+        done
+        
+        # Generate REST API docs if OpenAPI spec exists
+        if [ -f "interface/server/src/main/resources/openapi.yaml" ]; then
+          sed "s/version: \".*\"/version: \"$VERSION\"/" \
+            interface/server/src/main/resources/openapi.yaml > \
+            api/v${MAJOR_VERSION}/rest/openapi.yaml
+          
+          # Generate Swagger UI
+          cp -r node_modules/swagger-ui-dist/* api/v${MAJOR_VERSION}/rest/
+          cat > api/v${MAJOR_VERSION}/rest/swagger-initializer.js << EOF
+        window.onload = function() {
+          window.ui = SwaggerUIBundle({
+            url: './openapi.yaml',
+            dom_id: '#swagger-ui',
+            deepLinking: true,
+            presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+            plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+            layout: "StandaloneLayout"
+          });
+        };
+        EOF
+        fi
+        
+        # Generate Docker API documentation
+        # Install yq for YAML parsing
+        sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+        sudo chmod +x /usr/local/bin/yq
+
+    - name: Download release artifacts for documentation
+      uses: actions/download-artifact@v3
+      with:
+        name: release-artifacts
+        path: release-artifacts/
+
+    - name: Generate Docker and version documentation
+      run: |
+        VERSION=${{ needs.version.outputs.new_version }}
+        MAJOR_VERSION=$(echo $VERSION | cut -d. -f1)
+        
+        COMPOSE_FILE="release-artifacts/docker-compose-prod.yml"
+
+        cat > api/v${MAJOR_VERSION}/docker/index.md << EOF
+        # Docker Deployment API v${MAJOR_VERSION}
+
+        ## Services Overview
+    
+        | Service | Ports | Purpose |
+        |---------|-------|---------|
+        EOF
+        
+        # Extract service information
+        yq eval '.services | keys | .[]' $COMPOSE_FILE | while read -r service; do
+        PORTS=$(yq eval ".services.${service}.ports // []" $COMPOSE_FILE | grep -E "^\s*-" | sed 's/.*"\([^"]*\)".*/\1/' | tr '\n' ', ' | sed 's/,$//')
+        [ -z "$PORTS" ] && PORTS="internal"
+        
+        case $service in
+            "cameranode") PURPOSE="Computer vision processing" ;;
+            "guibackend") PURPOSE="REST API & coordination" ;;
+            "guifrontend") PURPOSE="React web interface" ;;
+            "utilitynode") PURPOSE="Cluster supervision" ;;
+            "mongodb") PURPOSE="Data storage" ;;
+            *) PURPOSE="Service component" ;;
+        esac
+        
+        echo "| **$service** | \`$PORTS\` | $PURPOSE |" >> api/v${MAJOR_VERSION}/docker/index.md
+        done
+        
+        cat >> api/v${MAJOR_VERSION}/docker/index.md << EOF
+        
+        ## Services
+        - **cameranode**: Computer vision processing (ports: 2553, 5555, 8080)
+        - **guibackend**: REST API & coordination (ports: 2551, 4000)  
+        - **guifrontend**: React interface (port: 3000)
+        - **utilitynode**: Cluster supervision (port: 2552)
+        - **mongodb**: Data storage (port: 27017)
+        
+        ## Networks
+        - **swarm-network**: Overlay network for service communication
+        
+        See production docker-compose.yml for complete configuration.
+        EOF
+        
+        # Create version index
+        cat > api/v${MAJOR_VERSION}/index.md << EOF
+        # DCCV API Documentation v${MAJOR_VERSION}
+        
+        **Version:** $VERSION  
+        
+        ## Documentation Sections
+        
+        - [**Scala API**](./scala/) - Actor system and service APIs
+        - [**REST API**](./rest/) - HTTP endpoints and WebSocket streams  
+        - [**Docker API**](./docker/) - Service deployment configuration
+        
+        ## Quick Start
+        
+        \`\`\`bash
+        # Deploy DCCV cluster
+        curl -sSL https://github.com/brunoesposito2/DCCV/releases/download/v$VERSION/deploy-dccv.sh | bash -s $VERSION
+        \`\`\`
+        EOF
+        
+        # Update main API index
+        cat > api/index.md << EOF
+        # DCCV API Documentation
+        
+        ## Available Versions
+        EOF
+        
+        ls api/ | grep "^v[0-9]" | sort -V -r | while read version; do
+          echo "- [${version}](./${version}/) - Major version ${version#v}" >> api/index.md
+        done
+
+    - name: Upload documentation
+      uses: actions/upload-artifact@v3
+      with:
+        name: api-docs
+        path: api/
+        retention-days: 7
+
+  # 6. Creazione della release GitHub
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [version, prepare-artifacts]
+    if: needs.version.outputs.is_release == 'true'
+    outputs:
+        version: ${{ needs.version.outputs.new_version }}
+    
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: release-artifacts
+        path: release-artifacts/
+
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.DCCV_TOKEN }}
+      with:
+        tag_name: v${{ needs.version.outputs.new_version }}
+        name: Release v${{ needs.version.outputs.new_version }}
+        draft: false
+        prerelease: false
+        body: ${{ needs.version.outputs.release_notes }}
+        files: |
+          release-artifacts/docker-compose-prod.yml
+          release-artifacts/deploy-dccv.sh
+          release-artifacts/README.md
+
+  # 3. Build e push delle Docker images
+  build-images:
+    runs-on: ubuntu-latest
+    needs: [version, create-release]
+    if: needs.version.outputs.is_release == 'true'
+    strategy:
+      matrix:
+        service:
+          - name: cameranode
+            context: ./domain/
+            dockerfile: Dockerfile
+          - name: guifrontend
+            context: ./interface/client/
+            dockerfile: Dockerfile
+          - name: guibackend
+            context: ./distribution/usernode/
+            dockerfile: Dockerfile
+          - name: utilitynode
+            context: ./distribution/utilitynode/
+            dockerfile: Dockerfile
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Login to DockerHub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ env.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push ${{ matrix.service.name }}
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ matrix.service.context }}
+        file: ${{ matrix.service.context }}/${{ matrix.service.dockerfile }}
+        platforms: linux/amd64
+        push: true
+        tags: |
+          ${{ env.DOCKER_USERNAME }}/dccv-${{ matrix.service.name }}:latest
+          ${{ env.DOCKER_USERNAME }}/dccv-${{ matrix.service.name }}:${{ needs.create-release.outputs.version }}
+        cache-from: type=registry,ref=${{ env.DOCKER_USERNAME }}/dccv-${{ matrix.service.name }}:buildcache
+        cache-to: type=registry,ref=${{ env.DOCKER_USERNAME }}/dccv-${{ matrix.service.name }}:buildcache,mode=max
+
+  # 4. Update versioni nei branch di sviluppo
+  update-versions:
+    runs-on: ubuntu-latest
+    needs: [version, create-release]
+    if: needs.version.outputs.is_release == 'true'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.DCCV_TOKEN }}
+        
+    - name: Set up Git
+      run: |
+        git config --local user.name "github-actions[bot]"
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Update version across all branches
+      run: |
+        NEW_VERSION="${{ needs.create-release.outputs.version }}"
+        BRANCHES=("domain" "application" "presentation" "storage" "interface" "distribution")
+        
+        for branch in "${BRANCHES[@]}"; do
+          echo "Updating version in $branch branch"
+          
+          # Checkout branch
+          git checkout $branch
+
+          # Create gradle.properties if it doesn't exist
+          if [ ! -f "gradle.properties" ]; then
+            echo "Creating gradle.properties file..."
+            touch gradle.properties
+          fi
+          
+          # Update gradle.properties
+          if grep -q "^version=" gradle.properties; then
+            sed -i "s/^version=.*/version=$NEW_VERSION/" gradle.properties
+          else
+            echo "version=$NEW_VERSION" >> gradle.properties
+          fi
+          
+          # Update package.json in frontend if exists
+          if [ "$branch" == "interface" ]; then
+            if [ -f "interface/client/package.json" ]; then
+                sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$NEW_VERSION\"/" interface/client/package.json
+            fi
+          fi
+          
+          # Commit and push changes
+          git add .
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: sync version to v$NEW_VERSION [skip ci]"
+            git push origin $branch
+            echo "✅ Version updated in $branch"
+          else
+            echo "ℹ️ No changes in $branch"
+          fi
+        done
+        
+        # Return to main branch
+        git checkout main
+
+  # 7. Deploy della documentazione su GitHub Pages
+  deploy-pages:
+    runs-on: ubuntu-latest
+    needs: [version, create-release, generate-docs, update-versions]
+    if: needs.version.outputs.is_release == 'true'
+    
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        ref: main
+          
+    - name: Download API documentation
+      uses: actions/download-artifact@v3
+      with:
+        name: api-docs
+        path: api/
+        
+    - name: Setup Pages
+      uses: actions/configure-pages@v5
+      
+    - name: Build with Jekyll
+      uses: actions/jekyll-build-pages@v1
+      with:
+        source: ./
+        destination: ./_site
+        
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v3
+      
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+
+  # 8. Report finale e notifiche
+  summary:
+    runs-on: ubuntu-latest
+    needs: [version, create-release, deploy-pages, update-versions, build-images]
+    if: always() && needs.version.outputs.is_release == 'true'
+    
+    steps:
+    - name: Generate Summary Report
+      run: |
+        echo "## 🎉 DCCV Release v${{ needs.create-release.outputs.version }} Created" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
+        echo "- [📦 GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.create-release.outputs.version }})" >> $GITHUB_STEP_SUMMARY
+        echo "- [📚 Documentation](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)" >> $GITHUB_STEP_SUMMARY
+        echo "- [🐳 Docker Hub](https://hub.docker.com/u/${{ env.DOCKER_USERNAME }})" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.create-release.result }}" == "success" ]; then
+          echo "- ✅ GitHub Release created successfully" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ❌ GitHub Release failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ needs.deploy-pages.result }}" == "success" ]; then
+          echo "- ✅ Documentation deployed to GitHub Pages" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ❌ Documentation deployment failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🐳 Docker Images" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.DOCKER_USERNAME }}/dccv-cameranode:${{ needs.create-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.DOCKER_USERNAME }}/dccv-guibackend:${{ needs.create-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.DOCKER_USERNAME }}/dccv-guifrontend:${{ needs.create-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.DOCKER_USERNAME }}/dccv-utilitynode:${{ needs.create-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🚀 Quick Deploy" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.create-release.outputs.version }}/deploy-dccv.sh -o deploy-dccv.sh" >> $GITHUB_STEP_SUMMARY
+        echo "chmod +x deploy-dccv.sh" >> $GITHUB_STEP_SUMMARY
+        echo "./deploy-dccv.sh ${{ needs.create-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🏗️ System Components" >> $GITHUB_STEP_SUMMARY
+        echo "| Service | Ports | Purpose |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------|-------|---------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Camera Node | 2553, 5555, 8080 | Computer vision processing |" >> $GITHUB_STEP_SUMMARY
+        echo "| GUI Frontend | 3000 | React web interface |" >> $GITHUB_STEP_SUMMARY
+        echo "| GUI Backend | 2551, 4000 | REST API & coordination |" >> $GITHUB_STEP_SUMMARY
+        echo "| Utility Node | 2552 | Cluster supervision |" >> $GITHUB_STEP_SUMMARY
+        echo "| MongoDB | 27017 | Data storage |" >> $GITHUB_STEP_SUMMARY
+
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ Release workflow failed at step: ${{ github.job }}"
+        echo "Check the workflow logs for details"
