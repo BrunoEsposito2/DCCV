@@ -15,3 +15,7 @@ include(
     "interface:client",
     "interface:server",
     "inteface:cli")
+
+gradle.allprojects {
+    version = rootProject.findProperty("version") ?: "0.1.0"
+}
