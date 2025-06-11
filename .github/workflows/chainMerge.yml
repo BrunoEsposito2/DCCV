@@ -60,7 +60,7 @@ jobs:
         echo "Current branch: $current_branch"
 
         declare -A branches
-        branches=( ["domain"]="application" ["application"]="presentation" ["presentation"]="storage" ["storage"]="interface" ["interface"]="distribution" ["distribution"]="")
+        branches=( ["domain"]="application" ["application"]="presentation" ["presentation"]="storage" ["storage"]="interface" ["interface"]="distribution" ["distribution"]="main")
 
         next_branch="${branches[$current_branch]}"
         echo "Next branch: $next_branch"
