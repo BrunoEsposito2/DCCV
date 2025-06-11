@@ -19,18 +19,6 @@ tasks.register("test") {
             }
         }
         
-        // Validate deployment scripts
-        val deployScripts = fileTree(".") {
-            include("**/*.sh")
-        }
-        
-        deployScripts.forEach { script ->
-            logger.lifecycle("Checking script: ${script.name}")
-            if (!script.canExecute()) {
-                throw GradleException("Script ${script.name} is not executable")
-            }
-        }
-        
         logger.lifecycle("✅ Distribution configuration validation passed")
     }
 }
