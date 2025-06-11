@@ -71,7 +71,7 @@ jobs:
             echo "  - Feature detected"
             NEED_MINOR=true
           # Check for fix commits
-          elif [[ $commit == fix:* ]] || [[ $commit == fix\(*\):* ]];; then
+          elif [[ $commit == fix:* ]] || [[ $commit == fix\(*\):* ]]; then
             echo "  - Fix detected"
             NEED_PATCH=true
           fi
