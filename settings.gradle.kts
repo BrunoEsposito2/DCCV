@@ -7,3 +7,7 @@
 
 rootProject.name = "DCCV"
 include("domain")
+
+gradle.allprojects {
+    version = rootProject.findProperty("version") ?: "0.1.0"
+}
