@@ -22,3 +22,7 @@ include(
     ":distribution:usernode",
     ":distribution:cameranode"
 )
+
+gradle.allprojects {
+    version = rootProject.findProperty("version") ?: "0.1.0"
+}
