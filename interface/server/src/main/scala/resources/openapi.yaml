@@ -1,0 +1,417 @@
+openapi: 3.0.3
+info:
+  title: DCCV REST API
+  description: |
+    Distributed Cluster for Computer Vision REST API
+    
+    This API provides endpoints for managing camera nodes, switching between cameras,
+    configuring detection windows, and monitoring the computer vision cluster status.
+    
+  version: "1.0.0"
+  contact:
+    name: DCCV Team
+    email: [andrea.ingargiola@studio.unibo.it, bruno.esposito2@studio.unibo.it]
+  license:
+    name: GNU LGPL v3.0
+    url: https://www.gnu.org/licenses/lgpl-3.0.html
+
+servers:
+  - url: http://localhost:4000
+    description: Local development server
+
+tags:
+  - name: Camera Management
+    description: Camera switching and configuration operations
+  - name: System Status
+    description: Cluster and service status monitoring
+  - name: Detection Configuration
+    description: Computer vision detection window configuration
+
+paths:
+  /camera/switch:
+    post:
+      tags:
+        - Camera Management
+      summary: Switch to a different camera
+      description: |
+        Switches the active camera feed to the specified camera ID.
+        This will update the current camera being processed and streamed.
+      operationId: switchCamera
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CameraSwitchRequest'
+            examples:
+              switch_to_camera1:
+                summary: Switch to camera1
+                value:
+                  cameraId: "camera1"
+              switch_to_camera2:
+                summary: Switch to camera2
+                value:
+                  cameraId: "camera2"
+      responses:
+        '200':
+          description: Camera switched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CameraSwitchResponse'
+              examples:
+                success:
+                  summary: Successful camera switch
+                  value:
+                    cameraId: "camera1"
+                    status: "switched"
+                    timestamp: "2024-01-15T10:30:00Z"
+        '400':
+          description: Invalid camera ID or bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_camera:
+                  summary: Invalid camera ID
+                  value:
+                    error: "Invalid camera ID: camera99"
+                    code: "INVALID_CAMERA_ID"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /window:
+    post:
+      tags:
+        - Detection Configuration
+      summary: Configure detection window
+      description: |
+        Configures the detection window for computer vision processing.
+        The window defines the region of interest where face/body detection will be performed.
+        
+        **Note**: Setting width or height to 0 will use the full frame for detection.
+      operationId: configureWindow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WindowConfigRequest'
+            examples:
+              center_window:
+                summary: Center detection window
+                value:
+                  x: 320
+                  y: 240
+                  width: 640
+                  height: 480
+              full_frame:
+                summary: Full frame detection
+                value:
+                  x: 0
+                  y: 0
+                  width: 0
+                  height: 0
+              top_left_quarter:
+                summary: Top-left quarter detection
+                value:
+                  x: 0
+                  y: 0
+                  width: 320
+                  height: 240
+      responses:
+        '200':
+          description: Window configuration applied successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WindowConfigResponse'
+              examples:
+                success:
+                  summary: Successful window configuration
+                  value:
+                    status: "approved"
+                    window:
+                      x: 320
+                      y: 240
+                      width: 640
+                      height: 480
+                    message: "Detection window updated successfully"
+        '400':
+          description: Invalid window coordinates or dimensions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_coordinates:
+                  summary: Invalid coordinates
+                  value:
+                    error: "Invalid coordinates or dimensions"
+                    code: "INVALID_WINDOW_CONFIG"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /status:
+    get:
+      tags:
+        - System Status
+      summary: Get system status
+      description: |
+        Returns the current status of the DCCV cluster including:
+        - Service statuses (subscribe, input, config operations)
+        - Available cameras and their current state
+        - Current active camera
+        - Real-time detection metrics (people count, detection mode, FPS)
+      operationId: getStatus
+      responses:
+        '200':
+          description: System status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatusResponse'
+              examples:
+                healthy_system:
+                  summary: Healthy system with active detection
+                  value:
+                    subscribeStatus: "success"
+                    inputStatus: "success"
+                    configStatus: "success"
+                    currentCamera: "camera1"
+                    cameras:
+                      - id: "camera1"
+                        name: "Main Entrance"
+                        location: "Front"
+                        status: "active"
+                      - id: "camera2"
+                        name: "Parking Area"
+                        location: "Exterior"
+                        status: "idle"
+                    peopleCount: 3
+                    mode: "Face"
+                    fps: 28.5
+                    timestamp: "2024-01-15T10:30:00Z"
+                initialization:
+                  summary: System initializing
+                  value:
+                    subscribeStatus: "pending"
+                    inputStatus: "pending"
+                    configStatus: "pending"
+                    currentCamera: "camera1"
+                    cameras: []
+                    peopleCount: 0
+                    mode: "Initializing..."
+                    fps: 0.0
+                    timestamp: "2024-01-15T10:25:00Z"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CameraSwitchRequest:
+      type: object
+      required:
+        - cameraId
+      properties:
+        cameraId:
+          type: string
+          description: ID of the camera to switch to
+          pattern: '^camera[0-9]+$'
+          example: "camera1"
+      additionalProperties: false
+
+    CameraSwitchResponse:
+      type: object
+      properties:
+        cameraId:
+          type: string
+          description: ID of the camera that was switched to
+          example: "camera1"
+        status:
+          type: string
+          description: Status of the switch operation
+          enum: [switched, error]
+          example: "switched"
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when the switch occurred
+          example: "2024-01-15T10:30:00Z"
+
+    WindowConfigRequest:
+      type: object
+      required:
+        - x
+        - y
+        - width
+        - height
+      properties:
+        x:
+          type: integer
+          minimum: 0
+          description: X coordinate of the top-left corner of detection window
+          example: 320
+        y:
+          type: integer
+          minimum: 0
+          description: Y coordinate of the top-left corner of detection window
+          example: 240
+        width:
+          type: integer
+          minimum: 0
+          description: Width of detection window (0 for full frame width)
+          example: 640
+        height:
+          type: integer
+          minimum: 0
+          description: Height of detection window (0 for full frame height)
+          example: 480
+      additionalProperties: false
+
+    WindowConfigResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Status of the configuration operation
+          enum: [approved, rejected]
+          example: "approved"
+        window:
+          type: object
+          properties:
+            x:
+              type: integer
+              example: 320
+            y:
+              type: integer
+              example: 240
+            width:
+              type: integer
+              example: 640
+            height:
+              type: integer
+              example: 480
+        message:
+          type: string
+          description: Human-readable status message
+          example: "Detection window updated successfully"
+
+    Camera:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique camera identifier
+          pattern: '^camera[0-9]+$'
+          example: "camera1"
+        name:
+          type: string
+          description: Human-readable camera name
+          example: "Main Entrance"
+        location:
+          type: string
+          description: Physical location of the camera
+          example: "Front"
+        status:
+          type: string
+          description: Current camera status
+          enum: [active, idle, error]
+          example: "active"
+
+    SystemStatusResponse:
+      type: object
+      properties:
+        subscribeStatus:
+          type: string
+          description: Status of the subscription service
+          enum: [success, failure, pending]
+          example: "success"
+        inputStatus:
+          type: string
+          description: Status of the input service
+          enum: [success, failure, pending]
+          example: "success"
+        configStatus:
+          type: string
+          description: Status of the configuration service
+          enum: [success, failure, pending]
+          example: "success"
+        currentCamera:
+          type: string
+          description: ID of the currently active camera
+          example: "camera1"
+        cameras:
+          type: array
+          description: List of available cameras
+          items:
+            $ref: '#/components/schemas/Camera'
+        peopleCount:
+          type: integer
+          minimum: 0
+          description: Number of people currently detected
+          example: 3
+        mode:
+          type: string
+          description: Current detection mode
+          enum: [Face, Body, Initializing...]
+          example: "Face"
+        fps:
+          type: number
+          format: float
+          minimum: 0
+          description: Current frames per second of video processing
+          example: 28.5
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of the status snapshot
+          example: "2024-01-15T10:30:00Z"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Invalid camera ID"
+        code:
+          type: string
+          description: Machine-readable error code
+          example: "INVALID_CAMERA_ID"
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when the error occurred
+          example: "2024-01-15T10:30:00Z"
+
+  examples:
+    CameraSwitch:
+      summary: Example camera switch
+      value:
+        cameraId: "camera1"
+
+    WindowConfig:
+      summary: Example window configuration
+      value:
+        x: 320
+        y: 240
+        width: 640
+        height: 480
+
+externalDocs:
+  description: DCCV Project Documentation
+  url: https://brunoesposito2.github.io/DCCV/
