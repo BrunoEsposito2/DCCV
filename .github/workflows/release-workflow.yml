@@ -614,7 +614,7 @@ jobs:
           echo "Updating version in $branch branch"
           
           # Checkout branch
-          git checkout $branch
+          git checkout $branch --
 
           # Create gradle.properties if it doesn't exist
           if [ ! -f "gradle.properties" ]; then
