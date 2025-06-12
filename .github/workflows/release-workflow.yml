@@ -348,7 +348,7 @@ jobs:
   # 5. Generazione documentazione API
   generate-docs:
     runs-on: ubuntu-latest
-    needs: [version, prepare-artifacts]
+    needs: version
     if: needs.version.outputs.is_release == 'true'
     
     steps:
@@ -543,7 +543,7 @@ jobs:
   # 3. Build e push delle Docker images
   build-images:
     runs-on: ubuntu-latest
-    needs: [version, create-release]
+    needs: version
     if: needs.version.outputs.is_release == 'true'
     strategy:
       matrix:
@@ -590,7 +590,7 @@ jobs:
   # 4. Update versioni nei branch di sviluppo
   update-versions:
     runs-on: ubuntu-latest
-    needs: [version, create-release]
+    needs: version
     if: needs.version.outputs.is_release == 'true'
     
     steps:
@@ -653,7 +653,7 @@ jobs:
   # 7. Deploy della documentazione su GitHub Pages
   deploy-pages:
     runs-on: ubuntu-latest
-    needs: [version, create-release, generate-docs, update-versions]
+    needs: [version, generate-docs]
     if: needs.version.outputs.is_release == 'true'
     
     permissions:
@@ -700,7 +700,7 @@ jobs:
   # 8. Report finale e notifiche
   summary:
     runs-on: ubuntu-latest
-    needs: [version, create-release, deploy-pages, update-versions, build-images]
+    needs: [version, create-release, deploy-pages, build-images]
     if: always() && needs.version.outputs.is_release == 'true'
     
     steps:
