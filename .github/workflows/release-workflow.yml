@@ -124,7 +124,7 @@ jobs:
           [ -z "$commit" ] && continue
           
           # Check for breaking changes
-          if [[ $commit == *"!"*":"* ]] || [[ $commit == *"BREAKING CHANGE"* ]]; then
+          if [[ $commit == feat*!:* || $commit == fix*!:* || $commit == refactor*!:* || $commit == perf*!:* || $commit == *"BREAKING CHANGE"* ]]; then
             BREAKING_COMMITS="$BREAKING_COMMITS\n- $commit"
           # Check for features
           elif [[ $commit == feat:* ]] || [[ $commit == feat\(*\):* ]]; then
