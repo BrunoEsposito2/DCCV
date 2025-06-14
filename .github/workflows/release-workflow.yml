@@ -386,6 +386,7 @@ jobs:
         for module in application presentation interface/server; do
           module_name=$(basename $module)
           if [ -d "$module/build/docs/scaladoc" ]; then
+            mkdir -p api/v${MAJOR_VERSION}/scala/${module_name}/
             cp -r $module/build/docs/scaladoc/* api/v${MAJOR_VERSION}/scala/${module_name}/
           fi
         done
@@ -583,7 +584,7 @@ jobs:
         push: true
         tags: |
           ${{ env.DOCKER_USERNAME }}/dccv-${{ matrix.service.name }}:latest
-          ${{ env.DOCKER_USERNAME }}/dccv-${{ matrix.service.name }}:${{ needs.create-release.outputs.version }}
+          ${{ env.DOCKER_USERNAME }}/dccv-${{ matrix.service.name }}:${{ needs.version.outputs.new_version }}
         cache-from: type=registry,ref=${{ env.DOCKER_USERNAME }}/dccv-${{ matrix.service.name }}:buildcache
         cache-to: type=registry,ref=${{ env.DOCKER_USERNAME }}/dccv-${{ matrix.service.name }}:buildcache,mode=max
 
