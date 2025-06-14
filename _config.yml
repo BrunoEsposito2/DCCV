@@ -1,0 +1,42 @@
+title: DCCV - Distributed Cluster for Computer Vision
+description: A distributed computer vision system built with Akka actors and Docker Swarm
+baseurl: "/DCCV"
+url: "https://brunoesposito2.github.io"
+
+markdown: kramdown
+highlighter: rouge
+theme: jekyll-theme-architect
+
+plugins:
+  - jekyll-seo-tag
+  - jekyll-remote-theme
+
+remote_theme: pages-themes/architect@v0.2.0
+
+show_downloads: true
+
+collections:
+  api_versions:
+    output: true
+    permalink: /api/:path/
+
+exclude:
+  - .gradle/
+  - build/
+  - gradle/
+  - gradlew
+  - gradlew.bat
+  - settings.gradle.kts
+  - "*.gradle.kts"
+  - node_modules/
+  - package*.json
+  - Dockerfile
+  - docker-compose*.yml
+  - "*.sh"
+  - .git/
+  - .github/
+
+include:
+  - api/
+  - README.md
+  - _pages
