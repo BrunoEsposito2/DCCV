@@ -1,6 +1,6 @@
 {
   "name": "interface",
-  "version": "",
+  "version": "1.0.4",
   "private": true,
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.2",
