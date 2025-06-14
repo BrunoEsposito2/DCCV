@@ -608,7 +608,7 @@ jobs:
 
     - name: Update version across all branches
       run: |
-        NEW_VERSION="${{ needs.create-release.outputs.version }}"
+        NEW_VERSION="${{ needs.version.outputs.new_version }}"
         BRANCHES=("domain" "application" "presentation" "storage" "interface" "distribution")
         
         for branch in "${BRANCHES[@]}"; do
