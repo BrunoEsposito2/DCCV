@@ -189,7 +189,7 @@ gitHooks {
 
 // Conventional commits rules to add for commits checking
 tasks.register("conventionalCommits") {
-    val pattern = Pattern.compile("^(feat|fix|docs|style|refactor|test|chore|build|ci)(\\(.*\\))?: .{1,50}")
+    val pattern = Pattern.compile("^(feat|fix|docs|style|refactor|test|chore|build|ci|perf)(\\(.*\\))?!?: .{1,50}")
     val message = File(".git/COMMIT_EDITMSG").readText().trim()
     if (!pattern.matcher(message).find()) {
         throw GradleException("ERROR: Commit message does not follow Conventional Commits format.")
