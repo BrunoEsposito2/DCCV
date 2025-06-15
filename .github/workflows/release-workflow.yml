@@ -392,9 +392,9 @@ jobs:
         done
         
         # Generate REST API docs if OpenAPI spec exists
-        if [ -f "interface/server/src/main/resources/openapi.yaml" ]; then
+        if [ -f "interface/server/src/main/scala/resources/openapi.yaml" ]; then
           sed "s/version: \".*\"/version: \"$VERSION\"/" \
-            interface/server/src/main/resources/openapi.yaml > \
+            interface/server/src/main/scala/resources/openapi.yaml > \
             api/v${MAJOR_VERSION}/rest/openapi.yaml
           
           # Generate Swagger UI
@@ -481,6 +481,9 @@ jobs:
         ## Documentation Sections
         
         - [**Scala API**](./scala/) - Actor system and service APIs
+          - [Application Module](./scala/application/) 
+          - [Presentation Module](./scala/presentation/) 
+          - [Interface cli Module](./scala/server/) 
         - [**REST API**](./rest/) - HTTP endpoints and WebSocket streams  
         - [**Docker API**](./docker/) - Service deployment configuration
         
