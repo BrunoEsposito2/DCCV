@@ -348,8 +348,8 @@ jobs:
   # 5. Generazione documentazione API
   generate-docs:
     runs-on: ubuntu-latest
-    needs: version
-    if: needs.version.outputs.is_release == 'true'
+    needs: [version, update-versions] # wait for version determination and updates
+    if: needs.version.outputs.is_release == 'true' 
     
     steps:
     - name: Checkout repository
@@ -483,7 +483,7 @@ jobs:
         - [**Scala API**] - Actor system and service APIs
           - [Application Module](./scala/application/) 
           - [Presentation Module](./scala/presentation/) 
-          - [Interface cli Module](./scala/server/) 
+          - [Interface cli Module](./scala/cli/) 
         - [**REST API**](./rest/) - HTTP endpoints and WebSocket streams  
         - [**Docker API**](./docker/) - Service deployment configuration
         
@@ -637,42 +637,67 @@ jobs:
     - name: Update version across all branches
       run: |
         NEW_VERSION="${{ needs.version.outputs.new_version }}"
-        BRANCHES=("domain" "application" "presentation" "storage" "interface" "distribution")
+        BRANCHES=("main" "domain" "application" "presentation" "storage" "interface" "distribution")
         
         for branch in "${BRANCHES[@]}"; do
-          echo "Updating version in $branch branch"
-          
-          # Checkout branch
-          git checkout $branch --
+          if [ "$branch" == "main" ]; then
+            # Update gradle.properties
+            if grep -q "^version=" gradle.properties; then
+              sed -i "s/^version=.*/version=$NEW_VERSION/" gradle.properties
+            else
+              echo "version=$NEW_VERSION" >> gradle.properties
+            fi
 
-          # Create gradle.properties if it doesn't exist
-          if [ ! -f "gradle.properties" ]; then
-            echo "Creating gradle.properties file..."
-            touch gradle.properties
-          fi
-          
-          # Update gradle.properties
-          if grep -q "^version=" gradle.properties; then
-            sed -i "s/^version=.*/version=$NEW_VERSION/" gradle.properties
-          else
-            echo "version=$NEW_VERSION" >> gradle.properties
-          fi
-          
-          # Update package.json in frontend if exists
-          if [ "$branch" == "interface" ]; then
+            # Update package.json in frontend if exists
             if [ -f "interface/client/package.json" ]; then
                 sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$NEW_VERSION\"/" interface/client/package.json
             fi
-          fi
-          
-          # Commit and push changes
-          git add .
-          if ! git diff --staged --quiet; then
-            git commit -m "chore: sync version to v$NEW_VERSION [skip ci]"
-            git push origin $branch
-            echo "✅ Version updated in $branch"
+
+            # Commit and push changes
+            git add .
+            if ! git diff --staged --quiet; then
+              git commit -m "chore: sync version to v$NEW_VERSION [skip ci]"
+              git push origin $branch
+              echo "✅ Version updated in $branch"
+            else
+              echo "ℹ️ No changes in $branch"
+            fi
           else
-            echo "ℹ️ No changes in $branch"
+
+            echo "Updating version in $branch branch"
+            
+            # Checkout branch
+            git checkout $branch --
+
+            # Create gradle.properties if it doesn't exist
+            if [ ! -f "gradle.properties" ]; then
+              echo "Creating gradle.properties file..."
+              touch gradle.properties
+            fi
+            
+            # Update gradle.properties
+            if grep -q "^version=" gradle.properties; then
+              sed -i "s/^version=.*/version=$NEW_VERSION/" gradle.properties
+            else
+              echo "version=$NEW_VERSION" >> gradle.properties
+            fi
+            
+            # Update package.json in frontend if exists
+            if [ "$branch" == "interface" ]; then
+              if [ -f "interface/client/package.json" ]; then
+                  sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$NEW_VERSION\"/" interface/client/package.json
+              fi
+            fi
+            
+            # Commit and push changes
+            git add .
+            if ! git diff --staged --quiet; then
+              git commit -m "chore: sync version to v$NEW_VERSION [skip ci]"
+              git push origin $branch
+              echo "✅ Version updated in $branch"
+            else
+              echo "ℹ️ No changes in $branch"
+            fi
           fi
         done
         
