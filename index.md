@@ -37,7 +37,7 @@ chmod +x deploy-dccv.sh
 
 ## Documentation
 
-- [**API Documentation**](./api/) - REST and WebSocket reference
+- [**API Documentation**](./api/) - Akka actors main protocols, REST and Docker APIs
 - [**Latest Release**](https://github.com/brunoesposito2/DCCV/releases/latest) - Deployment files
 - [**Source Code**](https://github.com/brunoesposito2/DCCV) - GitHub repository
 - [**Docker Images**](https://hub.docker.com/u/brunoesposito2) - Container registry
