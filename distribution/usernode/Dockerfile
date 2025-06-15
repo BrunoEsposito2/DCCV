@@ -37,6 +37,8 @@ WORKDIR /DCCV
 
 COPY . .
 
+RUN chmod +x /DCCV/distribution/usernode/entrypoint.sh
+
 EXPOSE 2551
 
 # CMD ["/bin/bash", "/DCCV/distribution/usernode/entrypoint.sh"]

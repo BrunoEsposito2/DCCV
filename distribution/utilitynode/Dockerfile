@@ -38,5 +38,7 @@ WORKDIR /DCCV
 
 COPY . .
 
+RUN chmod +x /DCCV/distribution/utilitynode/entrypoint.sh
+
 # Comando da eseguire all'avvio del container
 # CMD ["/bin/bash", "/DCCV/distribution/utilitynode/entrypoint.sh"]

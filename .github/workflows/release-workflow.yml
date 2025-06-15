@@ -375,6 +375,8 @@ jobs:
         # Setup documentation structure
         mkdir -p api/v${MAJOR_VERSION}/{scala,rest,docker}
         
+        echo "version=$VERSION" > gradle.properties
+
         # Generate Scaladoc for modules with API
         ./gradlew \
           application:scaladoc \
