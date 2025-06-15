@@ -492,6 +492,12 @@ jobs:
         \`\`\`bash
         # Deploy DCCV cluster
         curl -sSL https://github.com/brunoesposito2/DCCV/releases/download/v$VERSION/deploy-dccv.sh | bash -s $VERSION
+
+        # Set execute permission
+        chmod +x deploy-dccv.sh
+
+        # Launch command
+        ./deploy-dccv.sh ${VERSION}
         \`\`\`
         EOF
         
