@@ -11,6 +11,7 @@ plugins {
 
     // Apply the application plugin to add support for building a CLI application in Java.
     application
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 repositories {
@@ -50,7 +51,8 @@ dependencies {
 
     implementation(project(":application")) {
         isTransitive = false
-    }
+    } 
+    
     implementation(project(":presentation")) {
         isTransitive = false
     }
@@ -92,22 +94,16 @@ tasks.register("launchServer") {
     }
 }
 
-//tasks.jar {
-//    manifest {
-//        attributes["Main-Class"] = application.mainClass
-//    }
-//
-//    // Questo assicura che tutte le dipendenze, inclusa scala-library, siano incluse nel JAR
-//    from(sourceSets.main.get().output)
-//    dependsOn(configurations.runtimeClasspath)
-//    from({
-//        configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }.map { zipTree(it) }
-//    }) {
-//        exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
-//    }
-//
-//    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-//
-//    // Opzionale: rinomina il file JAR per includere "fat" o "all" nel nome
-//    archiveClassifier.set("fat")
-//}
+tasks.shadowJar {
+    archiveClassifier.set("fat")
+    mergeServiceFiles() // Per gestire META-INF/services
+    exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
+    
+    // Include explicitly all resources from all source sets
+    from(sourceSets.main.get().resources)
+    
+    // Include resources from dependencies that might be needed
+    transform(com.github.jengelman.gradle.plugins.shadow.transformers.AppendingTransformer::class.java) {
+        resource = "reference.conf"
+    }
+}
