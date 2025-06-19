@@ -4,6 +4,7 @@ services:
   # Camera Node - Computer Vision Processing
   cameranode:
     image: brunoesposito2/dccv-cameranode:latest
+    command: /bin/bash -c "/DCCV/entrypoint.sh"
     ports:
       - "2553:2553"  # Akka cluster
       - "5555:5555"  # WebSocket video stream
@@ -49,7 +50,7 @@ services:
   # GUI Backend - Akka HTTP REST API
   guibackend:
     image: brunoesposito2/dccv-guibackend:latest
-    command: /bin/bash -c "./distribution/usernode/entrypoint.sh"
+    command: /bin/bash -c "/DCCV/entrypoint.sh"
     ports:
       - "2551:2551"  # Akka cluster
       - "4000:4000"  # HTTP REST API
@@ -72,7 +73,7 @@ services:
   # Utility Node - Cluster Coordination & Storage
   utilitynode:
     image: brunoesposito2/dccv-utilitynode:latest
-    command: /bin/bash -c "./distribution/utilitynode/entrypoint.sh"
+    command: /bin/bash -c "/DCCV/entrypoint.sh"
     ports:
       - "2552:2552"  # Akka cluster
     environment:
