@@ -5,10 +5,10 @@ services:
   cameranode:
     build:
       context: ../
-      dockerfile: domain/Dockerfile
+      dockerfile: distribution/cameranode/Dockerfile
     privileged: true
     container_name: cameranode
-    command: /bin/bash -c "/DCCV/distribution/cameranode/entrypoint.sh" # && /DCCV/domain/run.sh"
+    command: /bin/bash -c "/DCCV/entrypoint.sh" 
     ports:
       - "2553:2553"
       - "5555:5555"
@@ -16,13 +16,11 @@ services:
     environment:
       - JOIN_TOKEN=${JOIN_TOKEN}
       - MANAGER_IP=${MANAGER_IP}
-      - GRADLE_USER_HOME=/DCCV/.gradle-camera # DEV MODE
     volumes:
-      - ../:/DCCV:cached # DEV MODE
       - cameranode-certs:/certs
     networks:
       - swarm-network
-    restart: unless-stopped # always in PROD MODE
+    restart: unless-stopped 
 
   # UserNode (Frontend + Backend)
   guifrontend:
@@ -39,14 +37,12 @@ services:
       - DOCKER_HOST=unix:///var/run/docker.sock
       - REACT_APP_API_BASE_URL=http://localhost:4000
       - REACT_APP_VIDEO_WS_URL=ws://localhost:5555
-      - GRADLE_USER_HOME=/DCCV/.gradle-frontend # DEV MODE
     volumes:
       - guifrontend-certs:/certs
       - guifrontend-data:/var/lib/docker
-      - ../interface/client:/app:cached # DEV MODE
     networks:
       - swarm-network
-    restart: unless-stopped # always in PROD MODE
+    restart: unless-stopped 
 
   guibackend:
     build:
@@ -54,20 +50,18 @@ services:
       dockerfile: distribution/usernode/Dockerfile
     privileged: true
     container_name: guibackend
-    command: /bin/bash -c "/DCCV/distribution/usernode/entrypoint.sh"
+    command: /bin/bash -c "/DCCV/entrypoint.sh" 
     ports:
       - "2551:2551"
       - "4000:4000"
     environment:
       - JOIN_TOKEN=${JOIN_TOKEN}
       - MANAGER_IP=${MANAGER_IP}
-      - GRADLE_USER_HOME=/DCCV/.gradle-backend # DEV MODE
     volumes:
       - guibackend-certs:/certs
-      - ../:/DCCV:cached # DEV MODE
     networks:
       - swarm-network
-    restart: unless-stopped # always in PROD MODE
+    restart: unless-stopped 
 
   # UtilityNode (+ MongoDB)
   mongodb:
@@ -85,7 +79,7 @@ services:
       - ./utilitynode/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     networks:
       - swarm-network
-    restart: unless-stopped # always in PROD MODE
+    restart: unless-stopped 
 
   utilitynode:
     build:
@@ -93,14 +87,13 @@ services:
       dockerfile: distribution/utilitynode/Dockerfile
     privileged: true
     container_name: utilitynode
-    command: /bin/bash -c "/DCCV/distribution/utilitynode/entrypoint.sh"
+    command: /bin/bash -c "/DCCV/entrypoint.sh" 
     ports:
       - "2552:2552"
     environment:
       - JOIN_TOKEN=${JOIN_TOKEN}
       - MANAGER_IP=${MANAGER_IP}
       - DATABASE_URI=mongodb://APP-USERNAME:APP-PASSWORD@mongodb:27017/DCCV
-      - GRADLE_USER_HOME=/DCCV/.gradle-utility
     deploy:
       mode: replicated
       replicas: 1
@@ -111,9 +104,8 @@ services:
     depends_on:
       - mongodb
     volumes:
-      - ../:/DCCV:cached # DEV MODE
       - utility-certs:/certs
-    restart: unless-stopped # always in PROD MODE
+    restart: unless-stopped
 
 networks:
   swarm-network:

@@ -1,4 +1,5 @@
-FROM ubuntu:latest
+# Multi-stage build per ottimizzare la dimensione dell'immagine finale
+FROM ubuntu:latest AS builder
 
 USER root
 
@@ -7,20 +8,8 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     wget \
     unzip \
-    sudo \
-    software-properties-common \
-    apt-transport-https \
-    ca-certificates
-
-# Installazione del JDK (OpenJDK 17)
-RUN apt-get install -y openjdk-17-jdk
-
-RUN apt-get install -y \
-    lsb-release && \
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    apt-get update && \
-    apt-get install -y docker-ce docker-ce-cli containerd.io
+    openjdk-17-jdk \
+    && rm -rf /var/lib/apt/lists/*
 
 # Installazione di Gradle
 ARG GRADLE_VERSION=8.7
@@ -28,17 +17,48 @@ RUN wget https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.
     && unzip gradle-${GRADLE_VERSION}-bin.zip -d /opt \
     && rm gradle-${GRADLE_VERSION}-bin.zip
 
-# Imposta la variabile d'ambiente per Gradle
 ENV GRADLE_HOME=/opt/gradle-${GRADLE_VERSION}
 ENV PATH=$PATH:$GRADLE_HOME/bin
 
-# Impostare la directory di lavoro
-WORKDIR /DCCV
-
+# Copia il codice sorgente
+WORKDIR /build
 COPY . .
 
-RUN chmod +x /DCCV/distribution/usernode/entrypoint.sh
+# Build del progetto e creazione del JAR
+RUN gradle clean shadowJar 
+
+# Stage finale - runtime
+FROM ubuntu:latest
+
+USER root
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    wget \
+    sudo \
+    software-properties-common \
+    apt-transport-https \
+    ca-certificates \
+    lsb-release \
+    openjdk-17-jre \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installazione Docker
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y docker-ce docker-ce-cli containerd.io && \
+    rm -rf /var/lib/apt/lists/*
+
+# Imposta la directory di lavoro
+WORKDIR /DCCV
+
+# Copia solo il JAR necessario dal builder stage
+COPY --from=builder /build/distribution/usernode/build/libs/usernode-*-fat.jar /DCCV/usernode-app.jar
+
+# Copia lo script di entrypoint
+COPY distribution/usernode/entrypoint.sh /DCCV/entrypoint.sh
+RUN chmod +x /DCCV/entrypoint.sh
 
 EXPOSE 2551
-
-# CMD ["/bin/bash", "/DCCV/distribution/usernode/entrypoint.sh"]
