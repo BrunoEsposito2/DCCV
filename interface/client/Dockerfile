@@ -74,7 +74,7 @@ RUN chmod +x ./entrypoint.sh
 # Create a start script for the application
 RUN echo '#!/bin/bash' > /app/start.sh && \
     echo 'echo "Starting DCCV Frontend..."' >> /app/start.sh && \
-    echo 'serve -s build -l 3000' >> /app/start.sh && \
+    echo 'serve -s build -l 3000 -H 0.0.0.0' >> /app/start.sh && \
     chmod +x /app/start.sh
 
 # Expose application port
