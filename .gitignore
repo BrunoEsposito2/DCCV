@@ -6,6 +6,10 @@ interface/client/build/
 
 .idea
 
+gradle.properties
+
+gradle.properties
+
 interface/client/package-lock.json
 
 # Ignore Gradle GUI config
