@@ -83,4 +83,17 @@ fi
 # Run Docker commands
 docker swarm join --token "$JOIN_TOKEN" "$MANAGER_IP:2377"
 sleep 5
-gradle --project-cache-dir=/DCCV/.gradle-frontend runReact
+# gradle --project-cache-dir=/DCCV/.gradle-frontend runReact
+
+echo -e "Starting DCCV Frontend Service..."
+
+# Check if build directory exists, if not create production build
+if [ ! -d "/app/build" ]; then
+    echo -e "Building React application..."
+    npm run build
+fi
+
+# Start the application
+echo -e "Starting frontend server on port 3000..."
+#exec serve -s build -l 3000
+/app/start.sh
