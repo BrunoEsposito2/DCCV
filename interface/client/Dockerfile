@@ -28,6 +28,9 @@ ENV GRADLE_HOME=/opt/gradle/latest
 ENV PATH=${GRADLE_HOME}/bin:${PATH}
 ENV NODE_ENV=production
 
+ENV REACT_APP_API_BASE_URL=http://guibackend:4000
+ENV REACT_APP_VIDEO_WS_URL=ws://cameranode:5555
+
 # Create and set up application directory
 WORKDIR /app
 
@@ -71,20 +74,9 @@ COPY --from=builder /app/entrypoint.sh ./entrypoint.sh
 # Make entrypoint executable
 RUN chmod +x ./entrypoint.sh
 
-# Create runtime configuration script
-RUN echo '#!/bin/bash' > /app/configure-runtime.sh && \
-    echo 'echo "Configuring runtime environment..."' >> /app/configure-runtime.sh && \
-    echo 'API_URL=${REACT_APP_API_BASE_URL:-http://localhost:4000}' >> /app/configure-runtime.sh && \
-    echo 'WS_URL=${REACT_APP_VIDEO_WS_URL:-ws://localhost:5555}' >> /app/configure-runtime.sh && \
-    echo 'find /app/build -name "*.js" -type f -exec sed -i "s|__PLACEHOLDER_API_URL__|$API_URL|g" {} \;' >> /app/configure-runtime.sh && \
-    echo 'find /app/build -name "*.js" -type f -exec sed -i "s|__PLACEHOLDER_WS_URL__|$WS_URL|g" {} \;' >> /app/configure-runtime.sh && \
-    echo 'echo "Runtime configuration complete: API=$API_URL, WS=$WS_URL"' >> /app/configure-runtime.sh && \
-    chmod +x /app/configure-runtime.sh
-
 # Create a start script for the application
 RUN echo '#!/bin/bash' > /app/start.sh && \
     echo 'echo "Starting DCCV Frontend..."' >> /app/start.sh && \
-    echo '/app/configure-runtime.sh' >> /app/start.sh && \
     echo 'cd /app/build' >> /app/start.sh && \
     echo 'http-server . -p 3000 -a 0.0.0.0 --cors -o' >> /app/start.sh && \
     chmod +x /app/start.sh
