@@ -83,4 +83,5 @@ fi
  # Run Docker commands
  docker swarm join --token "$JOIN_TOKEN" "$MANAGER_IP:2377"
  sleep 5
-gradle --project-cache-dir=/DCCV/.gradle-backend launchServer
+ cd /DCCV
+java -jar usernode-app.jar

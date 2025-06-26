@@ -8,6 +8,8 @@ interface/client/build/
 
 gradle.properties
 
+gradle.properties
+
 interface/client/package-lock.json
 
 # Ignore Gradle GUI config

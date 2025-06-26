@@ -64,6 +64,8 @@ function start_dev {
     # Pulizia dei lock file prima dell'avvio
     clean_gradle_locks
 
+    init_swarm
+
     echo -e "${YELLOW}Avvio CameraNode...${NC}"
     cd distribution/cameranode && docker-compose up -d
 
