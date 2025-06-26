@@ -58,7 +58,7 @@ RUN apk update && apk add --no-cache \
     docker-cli
 
 # Install serve globally to serve the React application
-RUN npm install -g serve
+RUN npm install -g http-server
 
 # Create application directory
 WORKDIR /app
