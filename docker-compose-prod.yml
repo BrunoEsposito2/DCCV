@@ -33,8 +33,8 @@ services:
       - MANAGER_IP=${MANAGER_IP}
       - DOCKER_TLS_CERTDIR=/certs
       - DOCKER_HOST=unix:///var/run/docker.sock
-      - REACT_APP_API_BASE_URL=http://localhost:4000
-      - REACT_APP_VIDEO_WS_URL=ws://localhost:5555
+      - REACT_APP_API_BASE_URL=http://guibackend:4000
+      - REACT_APP_VIDEO_WS_URL=ws://cameranode:5555
     volumes:
       - guifrontend-certs:/certs
       - guifrontend-data:/var/lib/docker
