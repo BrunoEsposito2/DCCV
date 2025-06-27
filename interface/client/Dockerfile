@@ -61,7 +61,7 @@ RUN apk update && apk add --no-cache \
     docker-cli
 
 # Install serve globally to serve the React application
-RUN npm install -g http-server
+RUN npm install -g serve
 
 # Create application directory
 WORKDIR /app
@@ -78,7 +78,7 @@ RUN chmod +x ./entrypoint.sh
 RUN echo '#!/bin/bash' > /app/start.sh && \
     echo 'echo "Starting DCCV Frontend..."' >> /app/start.sh && \
     echo 'cd /app/build' >> /app/start.sh && \
-    echo 'http-server . -p 3000 -a 0.0.0.0 --cors -o' >> /app/start.sh && \
+    echo 'serve -s . -l 3000 -L' >> /app/start.sh && \
     chmod +x /app/start.sh
 
 # Expose application port
