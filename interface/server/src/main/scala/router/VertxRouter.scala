@@ -188,7 +188,7 @@ private class VertxRouter:
     })
 
     // Avvia il server
-    httpServer.requestHandler(router).listen(4000, "0.0.0.0").onComplete(result => {
+    httpServer.requestHandler(router).listen(4000).onComplete(result => {
       if (result.succeeded()) {
         println(s"HTTP server running on port 4000")
       } else {
