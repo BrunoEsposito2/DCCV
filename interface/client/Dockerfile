@@ -28,8 +28,8 @@ ENV GRADLE_HOME=/opt/gradle/latest
 ENV PATH=${GRADLE_HOME}/bin:${PATH}
 ENV NODE_ENV=production
 
-ENV REACT_APP_API_BASE_URL=http://guibackend:4000
-ENV REACT_APP_VIDEO_WS_URL=ws://cameranode:5555
+# ENV REACT_APP_API_BASE_URL=http://localhost:4000
+# ENV REACT_APP_VIDEO_WS_URL=ws://localhost:5555
 
 # Create and set up application directory
 WORKDIR /app
