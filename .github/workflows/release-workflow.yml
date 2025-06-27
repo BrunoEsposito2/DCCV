@@ -482,7 +482,7 @@ jobs:
         
         ## Documentation Sections
         
-        - [**Scala API**] - Actor system and service APIs
+        - **Scala API** - Actor system and service APIs
           - [Application Module](./scala/application/) 
           - [Presentation Module](./scala/presentation/) 
           - [Interface cli Module](./scala/cli/) 
@@ -491,14 +491,18 @@ jobs:
         
         ## Quick Start
         
+        1. **Download the app deployment script:**
         \`\`\`bash
-        # Deploy DCCV cluster
-        curl -sSL https://github.com/brunoesposito2/DCCV/releases/download/v$VERSION/deploy-dccv.sh | bash -s $VERSION
+        curl -sSL https://github.com/brunoesposito2/DCCV/releases/download/v$VERSION/deploy-dccv.sh -o deploy-dccv.sh
+        \`\`\`
 
-        # Set execute permission
+        2. **Make it executable:**
+        \`\`\`bash
         chmod +x deploy-dccv.sh
+        \`\`\`
 
-        # Launch command
+        3. Launch command
+        \`\`\`bash
         ./deploy-dccv.sh ${VERSION}
         \`\`\`
 
@@ -508,7 +512,7 @@ jobs:
         \`\`\`bash
         docker swarm init
         export JOIN_TOKEN=\$(docker swarm join-token -q worker)
-        export MANAGER_IP=\$(docker node inspect self --format '{{.Status.Addr}}')
+        export MANAGER_IP=\$(docker node inspect self --format '\{\{.Status.Addr\}\}')
         \`\`\`
         
         2. **Create overlay network:**
