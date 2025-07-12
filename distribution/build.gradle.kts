@@ -22,18 +22,3 @@ tasks.register("test") {
         logger.lifecycle("✅ Distribution configuration validation passed")
     }
 }
-
-/*tasks.register("createJar") {
-    dependsOn(project.subprojects.map { it.tasks.named("jar") })
-    project.subprojects.forEach { p ->
-        exec {
-            commandLine("./gradlew", "${p.name}:jar")
-        }
-    }
-}*/
-
-tasks.register("deployPortainer") {
-    exec {
-        commandLine("docker", "stack", "deploy", "-c", "portainer.yml", "portainer")
-    }
-}
