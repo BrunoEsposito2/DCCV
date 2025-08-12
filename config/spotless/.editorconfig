@@ -1,0 +1,105 @@
+# EditorConfig per Kotlin e ktlint nel progetto DCCV
+# Questo file definisce gli standard di base per l'editing del codice Kotlin
+# Documentazione: https://editorconfig.org/ e https://pinterest.github.io/ktlint/
+
+root = true
+
+# Configurazione globale per tutti i file
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Configurazione specifica per file Kotlin (.kt)
+[*.kt]
+indent_style = space
+indent_size = 4
+max_line_length = 120
+# Kotlin Community conventions preferiscono 4 spazi
+
+# Configurazione per Kotlin scripts (.kts) - inclusi build scripts
+[*.kts]
+indent_style = space
+indent_size = 4
+max_line_length = 140
+# Build scripts tendono ad essere più verbose, quindi lunghezza maggiore
+
+# Configurazione per file Gradle Kotlin DSL
+[{build.gradle.kts,settings.gradle.kts,*.gradle.kts}]
+indent_style = space
+indent_size = 4
+max_line_length = 200
+continuation_indent_size = 8
+# Gradle DSL beneficia di continuation indent più ampio per nested blocks
+
+# Configurazione per file di configurazione JSON
+[*.json]
+indent_style = space
+indent_size = 2
+max_line_length = 80
+
+# Configurazione per file YAML
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+max_line_length = 80
+
+# Configurazione per file Markdown
+[*.md]
+indent_style = space
+indent_size = 2
+max_line_length = 80
+trim_trailing_whitespace = false
+# Markdown può richiedere trailing spaces per line breaks
+
+# Configurazione per file XML (inclusi Android layouts, se presenti)
+[*.xml]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# Configurazione per file properties
+[*.properties]
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+# Configurazione per shell scripts
+[*.{sh,bash}]
+indent_style = space
+indent_size = 2
+max_line_length = 100
+
+# Configurazione per file di configurazione specifici
+[{*.conf,*.config}]
+indent_style = space
+indent_size = 2
+max_line_length = 100
+
+# Configurazione per Dockerfile
+[{Dockerfile,Dockerfile.*}]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# Configurazione per file di documentazione
+[*.{txt,rst}]
+indent_style = space
+indent_size = 2
+max_line_length = 80
+trim_trailing_whitespace = false
+
+# Regole specifiche per ktlint (utilizzate quando ktlint legge questo file)
+# Queste vengono interpretate da ktlint per configurazioni aggiuntive
+
+# ktlint_standard_no-wildcard-imports = disabled
+# ktlint_standard_max-line-length = disabled
+# ktlint_standard_trailing-comma-on-call-site = disabled
+# ktlint_standard_trailing-comma-on-declaration-site = disabled
+
+# Note per le regole ktlint:
+# - Le regole commentate sopra possono essere decommentate per disabilitare
+#   specifiche regole ktlint che potrebbero essere troppo restrittive
+# - ktlint legge automaticamente questo file per configurazioni base
+# - Per configurazioni più complesse, utilizzare ktlint CLI arguments
