@@ -36,7 +36,8 @@ plugins {
 
     id("dccv-cpp")
     id("dccv-docker-build")
-    id("dccv-spotless")    
+    id("dccv-spotless")
+    
 }
 
 repositories {
