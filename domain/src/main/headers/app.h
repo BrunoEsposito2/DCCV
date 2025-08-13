@@ -8,10 +8,10 @@
 #include <string>
 
 namespace DCCV {
-    class Greeter {
-        public:
-        std::string greeting();
-    };
-}
+class Greeter {
+ public:
+  std::string greeting();
+};
+}  // namespace DCCV
 
 #endif

@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json.schemastore.org/prettierrc",
+  "_comment": "Configurazione Prettier per il progetto DCCV - JavaScript/TypeScript formatting",
+  
+  "printWidth": 100,
+  "_printWidth_comment": "Lunghezza massima della riga - bilanciata per readability su monitor moderni",
+  
+  "tabWidth": 2,
+  "_tabWidth_comment": "2 spazi per indentazione - standard industry per JavaScript",
+  
+  "useTabs": false,
+  "_useTabs_comment": "Usa spazi invece di tab per consistency cross-platform e cross-editor",
+  
+  "semi": true,
+  "_semi_comment": "Semicoloni sempre presenti per clarity e ASI safety",
+  
+  "singleQuote": true,
+  "_singleQuote_comment": "Single quotes per consistency con altri linguaggi del progetto (Scala, Kotlin)",
+  
+  "quoteProps": "as-needed",
+  "_quoteProps_comment": "Quote object properties solo quando sintatticamente necessario",
+  
+  "jsxSingleQuote": true,
+  "_jsxSingleQuote_comment": "Consistency con singleQuote anche in JSX",
+  
+  "trailingComma": "es5",
+  "_trailingComma_comment": "Trailing comma per ES5 compatibility e migliori Git diffs",
+  
+  "bracketSpacing": true,
+  "_bracketSpacing_comment": "Spazi intorno agli oggetti: { foo: bar } invece di {foo: bar}",
+  
+  "bracketSameLine": false,
+  "_bracketSameLine_comment": "Closing bracket su nuova riga per migliore readability",
+  
+  "arrowParens": "avoid",
+  "_arrowParens_comment": "Parentesi nelle arrow functions solo quando necessarie: x => x invece di (x) => x",
+  
+  "rangeStart": 0,
+  "_rangeStart_comment": "Inizio del range di formatting (0 = inizio file)",
+  
+  "rangeEnd": null,
+  "_rangeEnd_comment": "Fine del range di formatting (null = fine file)",
+  
+  "requirePragma": false,
+  "_requirePragma_comment": "Non richiede pragma comment per formatting automatico",
+  
+  "insertPragma": false,
+  "_insertPragma_comment": "Non inserisce pragma comment automaticamente",
+  
+  "proseWrap": "preserve",
+  "_proseWrap_comment": "Mantiene il wrapping originale per prose text",
+  
+  "htmlWhitespaceSensitivity": "css",
+  "_htmlWhitespaceSensitivity_comment": "Gestione whitespace HTML secondo regole CSS",
+  
+  "vueIndentScriptAndStyle": false,
+  "_vueIndentScriptAndStyle_comment": "Non indenta <script> e <style> in Vue SFC",
+  
+  "endOfLine": "lf",
+  "_endOfLine_comment": "Unix line endings per consistency cross-platform",
+  
+  "embeddedLanguageFormatting": "auto",
+  "_embeddedLanguageFormatting_comment": "Formatta automaticamente linguaggi embedded (CSS in JS, etc.)",
+  
+  "singleAttributePerLine": false,
+  "_singleAttributePerLine_comment": "Permette attributi multipli su singola riga per elementi semplici",
+  
+  "overrides": [
+    {
+      "files": "*.json",
+      "options": {
+        "printWidth": 80,
+        "tabWidth": 2,
+        "trailingComma": "none",
+        "_comment": "Configurazione specifica per JSON - più conservativa"
+      }
+    },
+    {
+      "files": "*.md",
+      "options": {
+        "printWidth": 80,
+        "proseWrap": "always",
+        "tabWidth": 2,
+        "_comment": "Configurazione per Markdown - linee più corte per readability"
+      }
+    },
+    {
+      "files": "*.yml",
+      "options": {
+        "printWidth": 80,
+        "tabWidth": 2,
+        "singleQuote": false,
+        "_comment": "Configurazione per YAML - preferisce double quotes per compatibility"
+      }
+    },
+    {
+      "files": "*.yaml",
+      "options": {
+        "printWidth": 80,
+        "tabWidth": 2,
+        "singleQuote": false,
+        "_comment": "Configurazione per YAML - preferisce double quotes per compatibility"
+      }
+    },
+    {
+      "files": "package.json",
+      "options": {
+        "printWidth": 120,
+        "tabWidth": 2,
+        "trailingComma": "none",
+        "_comment": "Package.json spesso ha linee lunghe per dependencies"
+      }
+    },
+    {
+      "files": "*.config.js",
+      "options": {
+        "printWidth": 120,
+        "tabWidth": 2,
+        "_comment": "Configuration files possono essere più larghi per readability"
+      }
+    }
+  ],
+  
+  "plugins": [],
+  "_plugins_comment": "Lista di plugin Prettier (vuota per configurazione base)"
+}
