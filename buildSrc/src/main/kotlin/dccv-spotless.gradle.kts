@@ -27,7 +27,6 @@ spotless {
         val versionRegex = Regex("""clang-format version (\d+\.\d+\.\d+)""")
 
         // Applicazione di clang-format per C++ con stile Google
-        // Questo garantisce consistenza con le best practice industriali
         val matchRegex = versionRegex.find(versionOutput)
         var version = ""
         if (matchRegex != null) {
@@ -59,7 +58,6 @@ spotless {
         target("**/*.scala")
 
         // Utilizzo di scalafmt per formattazione Scala standard
-        // scalafmt è il formatter de-facto per la comunità Scala
         scalafmt("3.8.3").configFile("../config/spotless/scalafmt.conf")
 
         // Standard di pulizia applicati universalmente
@@ -122,8 +120,8 @@ spotless {
 
         // ESLint integration per quality rules oltre al formatting
         custom("ESLint Integration") { content ->
-            // Placeholder per future ESLint rules integration
-            // Può essere esteso per enforcing specific coding patterns
+            // Placeholder per future ESLint rules integration: 
+            // può essere esteso per enforcing specific coding patterns
             content
         }
     }
@@ -146,7 +144,6 @@ spotless {
     isEnforceCheck = false // Permette formatting automatico invece di solo check
 
     // Ratchet configuration per applicare rules solo ai file modificati
-    // Utile per progetti legacy con molto codice esistente
     ratchetFrom("origin/main")
 
     // Configurazione per excluded paths globali
