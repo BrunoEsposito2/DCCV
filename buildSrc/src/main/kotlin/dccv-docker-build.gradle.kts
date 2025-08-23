@@ -5,13 +5,13 @@ tasks.register("dockerBuild") {
         delete("${projectDir}/build")
         if (OperatingSystem.current().isWindows) {
             exec {
-                commandLine("cmd", "/c", "docker build -t ubuntu-opencv_build_streaming .")
+                commandLine("cmd", "/c", "docker build -t ubuntu-opencv_build_streaming -f ../domain/Dockerfile ../")
                 standardOutput = System.out
                 errorOutput = System.err
             }
         } else {
             exec {
-                commandLine("sh", "-c", "docker build -t ubuntu-opencv_build_streaming .")
+                commandLine("sh", "-c", "docker build -t ubuntu-opencv_build_streaming -f ../domain/Dockerfile ../")
                 standardOutput = System.out
                 errorOutput = System.err
             }
@@ -22,25 +22,25 @@ tasks.register("dockerBuild") {
             exec {
                 commandLine(
                     "cmd", "/c",
-                    "docker run -v %cd%\\\\\\\\..:/DCCV -v /DCCV/.gradle" +
-                            " -v %cd%\\\\\\\\../.gradle:/tmp/.gradle" +
-                            " -p 5555:5555 --name ubuntu-opencv_build-container" +
+                    "docker run" +
+                            " -v " + projectDir + "/build:/DCCV/domain/build " + 
+                            " -p 5555:5555 --name ubuntu-opencv_build-container " +
                             " --rm ubuntu-opencv_build_streaming /bin/bash " +
-                            "-c \"GRADLE_USER_HOME=/tmp/.gradle ./gradlew domain:build\""
+                            "-c \"gradle build -x test -x spotlessCheck -x spotlessApply && domain/run.sh\""
                 )
                 standardOutput = System.out
                 errorOutput = System.err
             }
         } else {
+            
             exec {
                 commandLine(
                     "sh", "-c",
-                    "docker run" + " -v \$(pwd)/../:/DCCV -v /DCCV/.gradle" +
-                            " -v \$(pwd)/../.gradle:/tmp/.gradle" +
-                            " -p 5555:5555 --name ubuntu-opencv_build-container" +
-                            " --rm ubuntu-opencv_build_streaming /bin/bash " + //"-c gradle domain:build"
-                            "-c \"GRADLE_USER_HOME=/tmp/.gradle ./gradlew domain:build"// && " +
-                            // "/DCCV/domain/run.sh\""
+                    "docker run" +
+                            " -v " + projectDir + "/build:/DCCV/build " +
+                            " -p 5555:5555 --name ubuntu-opencv_build-container " +
+                            " --rm ubuntu-opencv_build_streaming /bin/bash " + 
+                            "-c \"gradle build -x test -x spotlessCheck -x spotlessApply && domain/run.sh\""
                 )
                 standardOutput = System.out
                 errorOutput = System.err

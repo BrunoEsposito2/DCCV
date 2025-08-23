@@ -13,6 +13,10 @@ on:
           - 'settings.gradle.*'
           - 'gradle.properties'
 
+concurrency:
+  group: chain-merge-${{ github.repository }}
+  cancel-in-progress: false
+
 jobs:
   chain-merge-and-test:
     runs-on: ubuntu-latest
