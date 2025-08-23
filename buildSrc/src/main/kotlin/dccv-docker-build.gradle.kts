@@ -37,7 +37,7 @@ tasks.register("dockerBuild") {
                 commandLine(
                     "sh", "-c",
                     "docker run" +
-                            " -v " + projectDir + "/domain/build:/DCCV/build " +
+                            " -v " + projectDir + "/build:/DCCV/build " +
                             " -p 5555:5555 --name ubuntu-opencv_build-container " +
                             " --rm ubuntu-opencv_build_streaming /bin/bash " + 
                             "-c \"gradle build -x test -x spotlessCheck -x spotlessApply && domain/run.sh\""
