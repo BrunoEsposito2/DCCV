@@ -340,7 +340,7 @@ jobs:
       with:
         name: release-artifacts
         path: release-artifacts/
-        retention-days: 7
+        retention-days: 90
 
     - name: Set ready flag
       run: echo "ready=true" >> $GITHUB_OUTPUT
