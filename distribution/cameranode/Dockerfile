@@ -40,7 +40,7 @@ COPY . .
 RUN gradle clean shadowJar 
 
 # Build del programma C++ per la creazione dell'eseguibile
-RUN gradle domain:build -x test
+RUN gradle domain:build -x test -x spotlessCheck -x spotlessApply
 
 # Stage finale - runtime basato sull'immagine OpenCV che già usi
 FROM brunoesposito2/ubuntu_opencv_build
